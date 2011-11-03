@@ -1,0 +1,17 @@
+Purpose:
+Test the priority donation of priority scheduler.
+
+Usage:
+-- nachos.ag.DonationGrader
+
+Author:
+Xiangru Chen
+
+History:
+2008-12-06 Xiangru Chen: The first version.
+	Test whether the priority scheduler can properly solve the problem of priority inversion.
+	It will test the priority donation when using locks, and also when using the join operation.
+
+Note:
+	It is recommended that this grader should run with the ThreadedKernel,
+	because the kernel threads of later phases (if there is) may corrupt the test.

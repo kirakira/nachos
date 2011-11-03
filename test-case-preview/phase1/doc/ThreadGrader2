@@ -1,0 +1,17 @@
+Purpose:
+ThreadGrader2: Communicator
+
+Test ThreadGrader2.a: Tests your communicator 
+Test ThreadGrader2.b: Tests your communicator, with more speakers/listeners 
+Test ThreadGrader2.c: Tests your communicator, with more speakers/listneers, and transmits more messages 
+
+See also official test case guide.
+
+Author:
+isaacyang
+
+History:
+2008-11-26 isaacyang: first version
+
+Arguments:
+N/A

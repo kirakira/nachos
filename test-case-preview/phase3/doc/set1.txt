@@ -1,0 +1,86 @@
+Testcase Set 1 for Phase 3 (Caching and Virtual Memory): basic requirments
+=================== vm_echo ===================
+Purpose:
+Test your arguments passing, with a simple echo program.
+It needs a demand-load page for passing arguments, before the thread is actually forked.
+
+Usage:
+-- nachos.ag.VMGrader -x vm_echo.coff -# output=vm_echo.out
+
+Author:
+Cheng Yu
+
+History:
+2010-01-16 Cheng Yu: The first version.
+
+=================== vm_lazyload ===============
+Purpose:
+Test whether the system uses lazy-loading.
+
+Usage:
+-- nachos.ag.VMGrader -x vm_lazyload.coff -# swapFile=VirtualMemory.bak
+
+Author:
+Xiangru Chen
+
+History:
+2008-12-26 Xiangru Chen: The first version.
+
+Arguments:
+swapFile: the name of the swap file.
+
+Restrictions:
+To run this test, the number of physical pages should be no more than 16.
+
+=================== vm_reuse ==================
+Purpose:
+Test whether the system can reuse the spaces in swap file left by the finished processes.
+
+Usage:
+-- nachos.ag.VMGrader -x vm_reuse.coff -# coffPar0=xxx,swapFile=xxx
+
+Author:
+Xiangru Chen
+
+History:
+2008-12-26 Xiangru Chen: The first version.
+
+Dependencies:
+vm_reuse_child.coff
+
+Arguments:
+coffPar0: number of child processes that will be forked. 10 is recommended.
+swapFile: the name of the swap file.
+
+Sample:
+-- nachos.ag.VMGrader -x vm_reuse.coff -# coffPar0=10,swapFile=SWAP0
+
+Restrictions:
+To run this test, the number of physical pages should be no more than 4.
+
+=================== vm_recursion ==============
+Purpose:
+Test the demand paging and reading/writing memory.
+
+Usage:
+-- nachos.ag.VMGrader -x vm_recursion.coff -# coffPar0=xxx,coffPar1=xxx,swapFile=xxx
+
+Author:
+Xiangru Chen
+
+History:
+2008-12-26 Xiangru Chen: The first version.
+
+Arguments:
+coffPar0: the depth of the recursion. At each level, an array of page-size will be placed in the stack.
+coffPar1: the skip factor. It means that, only (PAGE_SIZE / (2 ^ "skip factor")) bytes in each page will be used. When the test seems too slow, increase this value to speed it up.
+swapFile: the name of the swap file.
+
+Sample:
+-- nachos.ag.VMGrader -x vm_recursion.coff -# coffPar0=20,coffPar1=0,swapFile=SWAP0
+
+Restrictions:
+To run this test, the number of physical pages should be no more than 16.
+
+Note:
+This test needs a stack of more than 8 pages, if your stack size is fixed at 8, you can feel free to ignore this test:p

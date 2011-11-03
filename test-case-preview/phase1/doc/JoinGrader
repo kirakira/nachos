@@ -1,0 +1,13 @@
+Purpose:
+This testgrader is designed for detecting the bugs in join operation. It'll create and join a thread, then let it wait for some ticks.
+
+Author:
+Kang Zhang
+
+History:
+2008-11-10 Kang Zhang: add a new argument.
+2008-11-09 Kang Zhang: The first version.
+
+Arguments:
+waitTicks: The number of ticks for the thread to sleep. It should be a positive integer.
+times: The test times.

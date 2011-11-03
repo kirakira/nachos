@@ -1,0 +1,24 @@
+Purpose:
+Test boat
+
+Usage:
+-- nachos.ag.BoatGrader -[] nachos/proj1/nachos.conf -# adults=xxx,children=xxx
+
+Notice:
+# (not needed in the second version)
+you must make a additional call to BoatGrader.allCrossed() after task finish
+
+Author:
+crowwork
+
+History:
+2009-1-9 Sangxia Huang: The second version.
+	Used a different mechanism to decide ending:
+		end after idle thread has been ready-ed for many times.
+	Corrected a mistake in this doc.
+	
+2008-11-10 crowwork: The first version
+
+Arguments:
+adults: the number of adults
+children: the number of children

@@ -1,0 +1,22 @@
+Purpose:
+Test the priority scheduler (nachos.threads.PriorityScheduler).
+
+Usage:
+-- nachos.ag.PriorityGrader -# threads=xxx,times=xxx,length=xxx
+
+Author:
+Xiangru Chen
+
+History:
+2008-11-20 Xiangru Chen: The first version.
+	This version can only verify that your scheduler does not do things obviously wrong,
+	and it knows nothing about priority donation.
+
+Arguments:
+threads: the number of threads to be forked.
+times: the number of times to run the test.
+length: the lifetime of each thread, the bigger value leads to longer execute time.
+
+Note:
+	It is recommended that this grader should run with the ThreadedKernel,
+	because the kernel threads of later phases (if there is) may corrupt the test.

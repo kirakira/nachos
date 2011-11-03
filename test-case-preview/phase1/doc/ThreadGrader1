@@ -1,0 +1,16 @@
+Purpose:
+ThreadGrader1: Condition2
+
+Test ThreadGrader1.a: Tests your condition variables using a few threads 
+Test ThreadGrader1.b: Tests your condition variables using many threads 
+
+See also official test case guide.
+
+Author:
+isaacyang
+
+History:
+2008-11-26 isaacyang: first version
+
+Arguments:
+N/A
