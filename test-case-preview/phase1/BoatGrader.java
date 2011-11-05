@@ -1,8 +1,8 @@
-package ag;
+package nachos.ag;
 
-import threads.Boat;
-import threads.KThread;
-import machine.Lib;
+import nachos.threads.Boat;
+import nachos.threads.KThread;
+import nachos.machine.Lib;
 
 /**
  * Boat Grader

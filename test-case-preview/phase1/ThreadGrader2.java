@@ -69,22 +69,22 @@ public class ThreadGrader2 extends BasicTestGrader {
 		total = 50;
 		count = 0;
 		int na = 0, nb = 0;
-		for (int i = 0; i < total * 2; ++i) {
-			int tmp = Lib.random(2);
-			if (tmp == 0) {
+		for (int i = 0; i < total * 2; ++i) // bug identified by Xiao Jia @ 2011-11-04
+    {
+			int t = Lib.random(2);
+      if (na == total)
+        t = 1;
+      else if (nb == total)
+        t = 0;
+			if (t == 0)
+      {
 				++na;
 				forkNewThread(new a(i));
-			} else {
+			} else
+      {
 				++nb;
 				forkNewThread(new b());
 			}
-		}
-		if (na < nb) {
-			for (int i = 0; i < nb - na; ++i)
-				forkNewThread(new a(i + total * 2));
-		} else if (na > nb) {
-			for (int i = 0; i < na - nb; ++i)
-				forkNewThread(new b());
 		}
 		while (count != total) {
 			assertTrue(Machine.timer().getTime() < 15000,
