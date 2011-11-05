@@ -67,6 +67,11 @@ public class KThread {
 
 			createIdleThread();
 		}
+
+        joinQueue = ThreadedKernel.scheduler.newThreadQueue(true);
+        boolean intStatus = Machine.interrupt().disable();
+        joinQueue.acquire(this);
+        Machine.interrupt().restore(intStatus);
 	}
 
 	/**
@@ -205,6 +210,10 @@ public class KThread {
 
 		currentThread.status = statusFinished;
 
+        KThread wake = currentThread.joinQueue.nextThread();
+        if (wake != null)
+            wake.ready();
+
 		sleep();
 	}
 
@@ -287,6 +296,12 @@ public class KThread {
 
 		Lib.assertTrue(this != currentThread);
 
+        boolean intStatus = Machine.interrupt().disable();
+
+        joinQueue.waitForAccess(currentThread);
+        sleep();
+
+        Machine.interrupt().restore(intStatus);
 	}
 
 	/**
@@ -457,4 +472,6 @@ public class KThread {
 	private static KThread currentThread = null;
 	private static KThread toBeDestroyed = null;
 	private static KThread idleThread = null;
+
+    private ThreadQueue joinQueue;
 }
