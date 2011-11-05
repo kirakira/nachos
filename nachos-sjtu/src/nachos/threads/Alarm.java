@@ -1,5 +1,6 @@
 package nachos.threads;
 
+import java.util.*;
 import nachos.machine.*;
 
 /**
@@ -15,6 +16,18 @@ public class Alarm {
 	 * <b>Note</b>: Nachos will not function correctly with more than one alarm.
 	 */
 	public Alarm() {
+        waitingList = new PriorityQueue<WaitingThread>(
+                    11, new Comparator<WaitingThread>() {
+                        public int compare(WaitingThread t1, WaitingThread t2) {
+                            if (t1.due < t2.due)
+                                return -1;
+                            else if (t1.due == t2.due)
+                                return 0;
+                            else
+                                return 1;
+                        }
+                    });
+
 		Machine.timer().setInterruptHandler(new Runnable() {
 			public void run() {
 				timerInterrupt();
@@ -29,6 +42,14 @@ public class Alarm {
 	 * should be run.
 	 */
 	public void timerInterrupt() {
+        while (!waitingList.isEmpty()
+                && waitingList.peek().due >= Machine.timer().getTime()) {
+
+            boolean intStatus = Machine.interrupt().disable();
+            waitingList.poll().thread.ready();
+            Machine.interrupt().restore(intStatus);
+        }
+
 		KThread.yield();
 	}
 
@@ -46,9 +67,23 @@ public class Alarm {
 	 * @see nachos.machine.Timer#getTime()
 	 */
 	public void waitUntil(long x) {
-		// for now, cheat just to get something working (busy waiting is bad)
 		long wakeTime = Machine.timer().getTime() + x;
-		while (wakeTime > Machine.timer().getTime())
-			KThread.yield();
+        waitingList.add(new WaitingThread(KThread.currentThread(), wakeTime));
+
+        boolean intStatus = Machine.interrupt().disable();
+        KThread.sleep();
+        Machine.interrupt().restore(intStatus);
 	}
+
+    private static class WaitingThread {
+        KThread thread;
+        long due;
+
+        WaitingThread(KThread thread, long due) {
+            this.thread = thread;
+            this.due = due;
+        }
+    }
+
+    private PriorityQueue<WaitingThread> waitingList;
 }
