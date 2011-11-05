@@ -166,7 +166,7 @@ public class PriorityScheduler extends Scheduler {
             int best = priorityMinimum;
             for (KThread t: waitQueue) {
                 int p = PriorityScheduler.this.getThreadState(t).getEffectivePriority();
-                if (p >= best) {
+                if (ret == null || p > best) {
                     best = p;
                     ret = t;
                 }

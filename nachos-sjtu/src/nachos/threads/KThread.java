@@ -296,12 +296,16 @@ public class KThread {
 
 		Lib.assertTrue(this != currentThread);
 
-        boolean intStatus = Machine.interrupt().disable();
+        if (status == statusFinished)
+            return;
+        else {
+            boolean intStatus = Machine.interrupt().disable();
 
-        joinQueue.waitForAccess(currentThread);
-        sleep();
+            joinQueue.waitForAccess(currentThread);
+            sleep();
 
-        Machine.interrupt().restore(intStatus);
+            Machine.interrupt().restore(intStatus);
+        }
 	}
 
 	/**
