@@ -43,7 +43,7 @@ public class Alarm {
 	 */
 	public void timerInterrupt() {
         while (!waitingList.isEmpty()
-                && waitingList.peek().due >= Machine.timer().getTime()) {
+                && waitingList.peek().due <= Machine.timer().getTime()) {
 
             boolean intStatus = Machine.interrupt().disable();
             waitingList.poll().thread.ready();
