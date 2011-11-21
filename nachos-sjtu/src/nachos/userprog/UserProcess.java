@@ -33,6 +33,8 @@ public class UserProcess {
         openFiles.put(new Integer(1), UserKernel.console.openForWriting());
 
         fileId = 1024;
+
+        pid = ++pidCounter;
 	}
 
 	/**
@@ -365,9 +367,11 @@ public class UserProcess {
 	 */
 	private int handleHalt() {
 
-		Machine.halt();
+        if (pid == 1) {
+    		Machine.halt();
+    		Lib.assertNotReached("Machine.halt() did not halt machine!");
+        }
 
-		Lib.assertNotReached("Machine.halt() did not halt machine!");
 		return 0;
 	}
 
@@ -597,4 +601,7 @@ public class UserProcess {
     private Map<Integer, OpenFile> openFiles;
     private int fileId;
     private static final int maxArgLen = 256;
+
+    private static int pidCounter = 0;
+    private int pid;
 }
