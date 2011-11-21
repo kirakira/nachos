@@ -270,5 +270,9 @@ public class AutoGrader {
 		return true;
 	}
 
+  boolean hasArgument (String key)
+  {
+    return testArgs.get(key) != null;
+  }
 	private KThread currentThread;
 }

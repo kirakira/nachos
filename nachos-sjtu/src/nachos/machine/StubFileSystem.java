@@ -52,6 +52,10 @@ public class StubFileSystem implements FileSystem {
 		return fr.successful;
 	}
 
+  public int getOpenCount ()
+  {
+    return openCount;
+  }
 	private class FileRemover implements Runnable {
 		public FileRemover(File f) {
 			this.f = f;
