@@ -4,6 +4,7 @@ import nachos.machine.*;
 import nachos.threads.*;
 
 import java.io.EOFException;
+import java.util.*;
 
 /**
  * Encapsulates the state of a user process that is not contained in its user
@@ -26,6 +27,12 @@ public class UserProcess {
 		pageTable = new TranslationEntry[numPhysPages];
 		for (int i = 0; i < numPhysPages; i++)
 			pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
+
+        openFiles = new HashMap<Integer, OpenFile>();
+        openFiles.put(new Integer(0), UserKernel.console.openForReading());
+        openFiles.put(new Integer(1), UserKernel.console.openForWriting());
+
+        fileId = 1024;
 	}
 
 	/**
@@ -364,6 +371,82 @@ public class UserProcess {
 		return 0;
 	}
 
+    private int nextFileId() {
+        return ++fileId;
+    }
+
+    private int openFile(int a0, boolean create) {
+        String file = readVirtualMemoryString(a0, maxArgLen);
+        if (file == null)
+            return -1;
+
+        OpenFile of = ThreadedKernel.fileSystem.open(file, true);
+        if (of == null)
+            return -1;
+
+        int id = nextFileId();
+        openFiles.put(new Integer(id), of);
+
+        return id;
+    }
+
+    private int handleCreat(int a0) {
+        return openFile(a0, true);
+    }
+
+    private int handleOpen(int a0) {
+        return openFile(a0, false);
+    }
+
+    private int handleRead(int a0, int a1, int a2) {
+        OpenFile of = openFiles.get(a0);
+        if (of == null)
+            return -1;
+
+        byte[] buffer = new byte[a2];
+        int ret = of.read(buffer, 0, a2);
+
+        if (ret == -1)
+            return -1;
+
+        if (writeVirtualMemory(a1, buffer, 0, ret) != ret)
+            return -1;
+
+        return ret;
+    }
+
+    private int handleWrite(int a0, int a1, int a2) {
+        OpenFile of = openFiles.get(a0);
+        if (of == null)
+            return -1;
+
+        byte[] buffer = new byte[a2];
+        if (readVirtualMemory(a1, buffer, 0, a2) != a2)
+            return -1;
+
+        int ret = of.write(buffer, 0, a2);
+        return ret;
+    }
+
+    private int handleClose(int a0) {
+        if (!openFiles.containsKey(new Integer(a0)))
+            return -1;
+
+        openFiles.remove(new Integer(a0)).close();
+        return 0;
+    }
+
+    private int handleUnlink(int a0) {
+        String file = readVirtualMemoryString(a0, maxArgLen);
+        if (file == null)
+            return -1;
+
+        if (ThreadedKernel.fileSystem.remove(file))
+            return 0;
+        else
+            return -1;
+    }
+
 	private static final int syscallHalt = 0, syscallExit = 1, syscallExec = 2,
 			syscallJoin = 3, syscallCreate = 4, syscallOpen = 5,
 			syscallRead = 6, syscallWrite = 7, syscallClose = 8,
@@ -440,6 +523,24 @@ public class UserProcess {
 		case syscallHalt:
 			return handleHalt();
 
+        case syscallCreate:
+            return handleCreat(a0);
+
+        case syscallOpen:
+            return handleOpen(a0);
+
+        case syscallRead:
+            return handleRead(a0, a1, a2);
+
+        case syscallWrite:
+            return handleWrite(a0, a1, a2);
+
+        case syscallClose:
+            return handleClose(a0);
+
+        case syscallUnlink:
+            return handleUnlink(a0);
+
 		default:
 			Lib.debug(dbgProcess, "Unknown syscall " + syscall);
 			Lib.assertNotReached("Unknown system call!");
@@ -492,4 +593,8 @@ public class UserProcess {
 
 	private static final int pageSize = Processor.pageSize;
 	private static final char dbgProcess = 'a';
+
+    private Map<Integer, OpenFile> openFiles;
+    private int fileId;
+    private static final int maxArgLen = 256;
 }
