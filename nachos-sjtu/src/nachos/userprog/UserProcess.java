@@ -23,10 +23,8 @@ public class UserProcess {
 	 * Allocate a new process.
 	 */
 	public UserProcess() {
-		int numPhysPages = Machine.processor().getNumPhysPages();
-		pageTable = new TranslationEntry[numPhysPages];
-		for (int i = 0; i < numPhysPages; i++)
-			pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
+        pageTable = new TranslationEntry[Machine.processor().getNumPhysPages()];
+        numPages = 0;
 
         openFiles = new HashMap<Integer, OpenFile>();
         openFiles.put(new Integer(0), UserKernel.console.openForReading());
@@ -82,6 +80,22 @@ public class UserProcess {
 		Machine.processor().setPageTable(pageTable);
 	}
 
+    private boolean allocate(int vpn, int desiredPages, boolean readOnly) {
+        for (int i = 0; i < desiredPages; ++i) {
+            if (numPages >= pageTable.length)
+                return false;
+
+            int ppn = UserKernel.newPage();
+            if (ppn == -1)
+                return false;
+
+            pageTable[numPages] = new TranslationEntry(vpn + i,
+                    ppn, true, readOnly, false, false);
+            ++numPages;
+        }
+        return true;
+    }
+
 	/**
 	 * Read a null-terminated string from this process's virtual memory. Read at
 	 * most <tt>maxLength + 1</tt> bytes from the specified address, search for
@@ -126,6 +140,21 @@ public class UserProcess {
 		return readVirtualMemory(vaddr, data, 0, data.length);
 	}
 
+    private TranslationEntry lookUpPageTable(int vpn) {
+        if (pageTable == null)
+            return null;
+
+        for (int i = 0; i < numPages; ++i)
+            if (pageTable[i].vpn == vpn)
+                return pageTable[i];
+
+        return null;
+    }
+
+    private TranslationEntry translate(int vaddr) {
+        return lookUpPageTable(UserKernel.vpn(vaddr));
+    }
+
 	/**
 	 * Transfer data from this process's virtual memory to the specified array.
 	 * This method handles address translation details. This method must
@@ -148,16 +177,23 @@ public class UserProcess {
 		Lib.assertTrue(offset >= 0 && length >= 0
 				&& offset + length <= data.length);
 
+        TranslationEntry te = translate(vaddr);
+        if (te == null || !te.valid)
+            return 0;
+
+        int addrOffset = UserKernel.offset(vaddr);
+        int paddr = UserKernel.addr(te.ppn, addrOffset);
+
 		byte[] memory = Machine.processor().getMemory();
 
-		// for now, just assume that virtual addresses equal physical addresses
-		if (vaddr < 0 || vaddr >= memory.length)
-			return 0;
+		int amount = Math.min(length, pageSize - addrOffset);
+		System.arraycopy(memory, paddr, data, offset, amount);
 
-		int amount = Math.min(length, memory.length - vaddr);
-		System.arraycopy(memory, vaddr, data, offset, amount);
-
-		return amount;
+        if (amount < length)
+            return amount + readVirtualMemory(UserKernel.addr(te.vpn + 1, 0),
+                    data, offset + amount, length - amount);
+        else
+    		return amount;
 	}
 
 	/**
@@ -196,16 +232,23 @@ public class UserProcess {
 		Lib.assertTrue(offset >= 0 && length >= 0
 				&& offset + length <= data.length);
 
+        TranslationEntry te = translate(vaddr);
+        if (te == null || !te.valid || te.readOnly)
+            return 0;
+
+        int addrOffset = UserKernel.offset(vaddr);
+        int paddr = UserKernel.addr(te.ppn, addrOffset);
+
 		byte[] memory = Machine.processor().getMemory();
 
-		// for now, just assume that virtual addresses equal physical addresses
-		if (vaddr < 0 || vaddr >= memory.length)
-			return 0;
+		int amount = Math.min(length, pageSize - addrOffset);
+		System.arraycopy(data, offset, memory, paddr, amount);
 
-		int amount = Math.min(length, memory.length - vaddr);
-		System.arraycopy(data, offset, memory, vaddr, amount);
-
-		return amount;
+        if (amount < length)
+            return amount + writeVirtualMemory(UserKernel.addr(te.vpn + 1, 0),
+                    data, offset + amount, length - amount);
+        else
+    		return amount;
 	}
 
 	/**
@@ -246,7 +289,8 @@ public class UserProcess {
 				Lib.debug(dbgProcess, "\tfragmented executable");
 				return false;
 			}
-			numPages += section.getLength();
+            if (!allocate(numPages, section.getLength(), section.isReadOnly()))
+                return false;
 		}
 
 		// make sure the argv array will fit in one page
@@ -267,11 +311,13 @@ public class UserProcess {
 		initialPC = coff.getEntryPoint();
 
 		// next comes the stack; stack pointer initially points to top of it
-		numPages += stackPages;
+        if (!allocate(numPages, stackPages, false))
+            return false;
 		initialSP = numPages * pageSize;
 
 		// and finally reserve 1 page for arguments
-		numPages++;
+        if (!allocate(numPages, 1, false))
+            return false;
 
 		if (!loadSections())
 			return false;
@@ -285,16 +331,11 @@ public class UserProcess {
 
 		for (int i = 0; i < argv.length; i++) {
 			byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
-			Lib
-					.assertTrue(writeVirtualMemory(entryOffset,
-							stringOffsetBytes) == 4);
+			Lib.assertTrue(writeVirtualMemory(entryOffset, stringOffsetBytes) == 4);
 			entryOffset += 4;
-			Lib
-					.assertTrue(writeVirtualMemory(stringOffset, argv[i]) == argv[i].length);
+			Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) == argv[i].length);
 			stringOffset += argv[i].length;
-			Lib
-					.assertTrue(writeVirtualMemory(stringOffset,
-							new byte[] { 0 }) == 1);
+			Lib.assertTrue(writeVirtualMemory(stringOffset, new byte[] { 0 }) == 1);
 			stringOffset += 1;
 		}
 
@@ -325,8 +366,10 @@ public class UserProcess {
 			for (int i = 0; i < section.getLength(); i++) {
 				int vpn = section.getFirstVPN() + i;
 
-				// for now, just assume virtual addresses=physical addresses
-				section.loadPage(i, vpn);
+                TranslationEntry te = lookUpPageTable(vpn);
+                if (te == null)
+                    return false;
+				section.loadPage(i, te.ppn);
 			}
 		}
 
@@ -586,7 +629,7 @@ public class UserProcess {
 
 	/** This process's page table. */
 	protected TranslationEntry[] pageTable;
-	/** The number of contiguous pages occupied by the program. */
+	/** The number of pages occupied by the program. */
 	protected int numPages;
 
 	/** The number of pages in the program's stack. */

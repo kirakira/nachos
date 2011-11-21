@@ -28,6 +28,20 @@ public class UserKernel extends ThreadedKernel {
 				exceptionHandler();
 			}
 		});
+
+        offsetLen = 0;
+        for (offsetLen = 0; ; ++offsetLen)
+            if ((Processor.pageSize >> offsetLen) == 1) {
+                offsetMask = (1 << offsetLen) - 1;
+                vpnMask = ~offsetMask;
+                break;
+            }
+
+		int numPhysPages = Machine.processor().getNumPhysPages();
+        physPageUsed = new boolean[numPhysPages];
+        for (int i = 0; i < numPhysPages; ++i)
+            physPageUsed[i] = false;
+        pageLock = new Lock();
 	}
 
 	/**
@@ -107,7 +121,51 @@ public class UserKernel extends ThreadedKernel {
 		super.terminate();
 	}
 
+    public static int vpn(int vaddr) {
+        return (vaddr & vpnMask) >> (offsetLen);
+    }
+
+    public static int offset(int vaddr) {
+        return vaddr & offsetMask;
+    }
+
+    public static int addr(int pn, int offset) {
+        return (pn << offsetLen) + offset;
+    }
+
+    public static int newPage() {
+        int ret = -1;
+
+        pageLock.acquire();
+        for (int i = 0; i < physPageUsed.length; ++i)
+            if (physPageUsed[i] == false) {
+                physPageUsed[i] = true;
+                ret = i;
+                break;
+            }
+        pageLock.release();
+
+        return ret;
+    }
+
+    public static boolean deletePage(int ppn) {
+        boolean ret = false;
+
+        pageLock.acquire();
+        if (ppn < physPageUsed.length && physPageUsed[ppn] == true) {
+            physPageUsed[ppn] = false;
+            ret = true;
+        }
+        pageLock.release();
+
+        return ret;
+    }
+
 	/** Globally accessible reference to the synchronized console. */
 	public static SynchConsole console;
 
+    private static int offsetLen, offsetMask, vpnMask;
+
+    private static Lock pageLock;
+    private static boolean[] physPageUsed;
 }
