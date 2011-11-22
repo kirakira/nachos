@@ -82,6 +82,10 @@ public class UserProcess {
 		Machine.processor().setPageTable(pageTable);
 	}
 
+    public int getPid() {
+        return pid;
+    }
+
     private boolean allocate(int vpn, int desiredPages, boolean readOnly) {
         for (int i = 0; i < desiredPages; ++i) {
             if (numPages >= pageTable.length)
@@ -495,6 +499,32 @@ public class UserProcess {
             return -1;
     }
 
+    private int handleExec(int a0, int a1, int a2) {
+        String file = readVirtualMemoryString(a0, maxArgLen);
+        if (file == null)
+            return -1;
+
+        if (a1 < 0)
+            return -1;
+
+        String[] args = new String[a1];
+        for (int i = 0; i < a1; ++i) {
+            byte[] buffer = new byte[4];
+            if (readVirtualMemory(a2 + i * 4, buffer) != buffer.length)
+                return -1;
+            int addr = Lib.bytesToInt(buffer, 0);
+            args[i] = readVirtualMemoryString(addr, maxArgLen);
+            if (args[i] == null)
+                return -1;
+        }
+
+        UserProcess child = UserProcess.newUserProcess();
+        if (!child.execute(file, args))
+            return -1;
+
+        return child.getPid();
+    }
+
 	private static final int syscallHalt = 0, syscallExit = 1, syscallExec = 2,
 			syscallJoin = 3, syscallCreate = 4, syscallOpen = 5,
 			syscallRead = 6, syscallWrite = 7, syscallClose = 8,
@@ -588,6 +618,9 @@ public class UserProcess {
 
         case syscallUnlink:
             return handleUnlink(a0);
+
+        case syscallExec:
+            return handleExec(a0, a1, a2);
 
 		default:
 			Lib.debug(dbgProcess, "Unknown syscall " + syscall);
