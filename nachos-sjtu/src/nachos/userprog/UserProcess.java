@@ -34,7 +34,13 @@ public class UserProcess {
 
         fileId = 1024;
 
+        processLock.acquire();
         pid = ++pidCounter;
+        processes.put(new Integer(pid), this);
+        processLock.release();
+
+        parent = null;
+        thread = null;
 	}
 
 	/**
@@ -47,6 +53,14 @@ public class UserProcess {
 	public static UserProcess newUserProcess() {
 		return (UserProcess) Lib.constructObject(Machine.getProcessClassName());
 	}
+
+    private void setParent(UserProcess p) {
+        parent = p;
+    }
+
+    private UserProcess getParent() {
+        return parent;
+    }
 
 	/**
 	 * Execute the specified program with the specified arguments. Attempts to
@@ -62,7 +76,9 @@ public class UserProcess {
 		if (!load(name, args))
 			return false;
 
-		new UThread(this).setName(name).fork();
+        setParent(UserKernel.currentProcess());
+		thread = (UThread) (new UThread(this).setName(name));
+        thread.fork();
 
 		return true;
 	}
@@ -100,6 +116,11 @@ public class UserProcess {
             ++numPages;
         }
         return true;
+    }
+
+    private void finish(int cause) {
+        status = cause;
+        thread.finish();
     }
 
 	/**
@@ -525,6 +546,24 @@ public class UserProcess {
         return child.getPid();
     }
 
+    private int handleJoin(int a0, int a1) {
+        if (!processes.containsKey(new Integer(a0)))
+            return -1;
+
+        UserProcess child = processes.get(new Integer(a0));
+        if (child.getParent() != this)
+            return -1;
+
+        child.thread.join();
+        child.setParent(null);
+
+        if (child.status == 0) {
+            writeVirtualMemory(a1, Lib.bytesFromInt(child.code));
+            return 1;
+        } else
+            return 0;
+    }
+
 	private static final int syscallHalt = 0, syscallExit = 1, syscallExec = 2,
 			syscallJoin = 3, syscallCreate = 4, syscallOpen = 5,
 			syscallRead = 6, syscallWrite = 7, syscallClose = 8,
@@ -622,6 +661,9 @@ public class UserProcess {
         case syscallExec:
             return handleExec(a0, a1, a2);
 
+        case syscallJoin:
+            return handleJoin(a0, a1);
+
 		default:
 			Lib.debug(dbgProcess, "Unknown syscall " + syscall);
 			Lib.assertNotReached("Unknown system call!");
@@ -654,6 +696,7 @@ public class UserProcess {
 		default:
 			Lib.debug(dbgProcess, "Unexpected exception: "
 					+ Processor.exceptionNames[cause]);
+            finish(cause);
 			Lib.assertNotReached("Unexpected exception");
 		}
 	}
@@ -681,4 +724,13 @@ public class UserProcess {
 
     private static int pidCounter = 0;
     private int pid;
+
+    private static Map<Integer, UserProcess> processes = new HashMap<Integer, UserProcess>();
+    private static Lock processLock = new Lock();
+    private static int activeProcesses = 0;
+
+    private int status = 0, code = 0;
+
+    private UThread thread;
+    private UserProcess parent;
 }
