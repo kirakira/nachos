@@ -1,0 +1,18 @@
+Purpose:
+Test whether the OS can reuse the memory of finished processes.
+
+Usage:
+-- nachos.ag.CoffGrader -x test_memalloc.coff -# output=test_memalloc.out
+
+Author:
+Xiangru Chen
+
+History:
+2008-12-24 Xiangru Chen: The first version.
+
+Dependencies:
+hello.coff
+	print a "hello nachos!" message.
+
+Note:
+This test needs 64 physical pages.

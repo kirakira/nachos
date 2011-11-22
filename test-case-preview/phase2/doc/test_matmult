@@ -1,0 +1,19 @@
+Purpose:
+Test multiprogramming with 10 matmults.
+
+Usage:
+-- nachos.ag.CoffGrader -x test_matmult.coff -# output=test_matmult.out
+
+Author:
+Xiangru Chen
+
+History:
+2008-12-24 Xiangru Chen: The first version.
+
+Dependencies:
+matmult_syn.coff
+	nothing more than matmult.coff but with a synchronized output.
+
+Note:
+This test needs enough pages to hold 10 "matmult".
+If 8 pages are used as stack for each process, maybe there should be 256 physical pages.

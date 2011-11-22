@@ -1,0 +1,12 @@
+Purpose:
+Test the system calls for files, i.e. creat, open, read, write, close and unlink.
+
+Usage:
+-- nachos.ag.CoffGrader -x test_files.coff
+
+Author:
+Xiangru Chen
+
+History:
+2008-12-24 Xiangru Chen: The first version.
+

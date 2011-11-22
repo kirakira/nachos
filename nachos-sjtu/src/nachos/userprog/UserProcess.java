@@ -78,6 +78,7 @@ public class UserProcess {
 
         processLock.acquire();
         ++activeProcesses;
+        Lib.debug(dbgProcess, "process created: " + activeProcesses);
         processLock.release();
 
         setParent(UserKernel.currentProcess());
@@ -108,12 +109,14 @@ public class UserProcess {
 
     private boolean allocate(int vpn, int desiredPages, boolean readOnly) {
         for (int i = 0; i < desiredPages; ++i) {
-            if (numPages >= pageTable.length)
+            if (vpn >= pageTable.length)
                 return false;
 
             int ppn = UserKernel.newPage();
-            if (ppn == -1)
+            if (ppn == -1) {
+                Lib.debug(dbgProcess, "\tcannot allocate new page");
                 return false;
+            }
 
             pageTable[vpn + i] = new TranslationEntry(vpn + i,
                     ppn, true, readOnly, false, false);
@@ -132,9 +135,14 @@ public class UserProcess {
             if (p.getParent() == this)
                 p.setParent(null);
 
+        for (int i = 0; i < pageTable.length; ++i)
+            if (pageTable[i].valid)
+                UserKernel.deletePage(pageTable[i].ppn);
+
         boolean halt = false;
         processLock.acquire();
         --activeProcesses;
+        Lib.debug(dbgProcess, "process destroyed " + (cause == 0 ? "normally with code " + code : "abnormally with status " + status));
         if (activeProcesses == 0)
             halt = true;
         processLock.release();
@@ -475,7 +483,7 @@ public class UserProcess {
         if (file == null)
             return -1;
 
-        OpenFile of = ThreadedKernel.fileSystem.open(file, true);
+        OpenFile of = ThreadedKernel.fileSystem.open(file, create);
         if (of == null)
             return -1;
 

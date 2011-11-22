@@ -1,0 +1,29 @@
+A shell that can run scripts.
+
+Purpose:
+To simplify the testing work. You can use this shell instead of the original one.
+
+Usage:
+sh [script]
+
+Author:
+Xiangru Chen
+
+History:
+2008-11-21 Xiangru Chen: The first version.
+
+Arguments:
+script: the name of the script file.
+If you call sh without arguments, it will act no different to the original shell.
+When a script file is specified, it will run the commands in the script as if you type them in the prompt.
+
+A sample script:
+	sample.sh:
+	[
+		echo this is a script
+		matmult &
+		matmult &
+		matmult &
+		matmult &
+		matmult
+	]

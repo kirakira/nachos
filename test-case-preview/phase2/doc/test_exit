@@ -1,0 +1,16 @@
+Purpose:
+Test whether the machine halt properly when the last process exit.
+
+Usage:
+-x shCXR.coff
+
+Author:
+Yue Chen
+
+History:
+2010-1-5 Yue Chen: The first version.
+
+Note:
+Copy all the files in userprog/test/test_exit to your test directory, DO NOT modify sample.sh and run your program
+If the program runs correctly, it will NOT output any message and machine will halt.
+Otherwise your program may not end or you may encounter other errors.

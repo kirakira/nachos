@@ -1,0 +1,13 @@
+a simple c program that run many copies of a same program
+
+Usage:
+many filename(without .coff) times
+
+Example
+many matmult 3
+
+Author:
+Tianqi Chen
+
+History:
+2008-12-19 Tianqi Chen: The first version.
