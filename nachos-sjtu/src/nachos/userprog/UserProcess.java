@@ -76,6 +76,10 @@ public class UserProcess {
 		if (!load(name, args))
 			return false;
 
+        processLock.acquire();
+        ++activeProcesses;
+        processLock.release();
+
         setParent(UserKernel.currentProcess());
 		thread = (UThread) (new UThread(this).setName(name));
         thread.fork();
@@ -128,7 +132,17 @@ public class UserProcess {
             if (p.getParent() == this)
                 p.setParent(null);
 
-        thread.finish();
+        boolean halt = false;
+        processLock.acquire();
+        --activeProcesses;
+        if (activeProcesses == 0)
+            halt = true;
+        processLock.release();
+
+        if (halt)
+            Machine.halt();
+        else
+            thread.finish();
     }
 
 	/**
