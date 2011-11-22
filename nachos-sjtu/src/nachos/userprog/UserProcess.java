@@ -120,6 +120,14 @@ public class UserProcess {
 
     private void finish(int cause) {
         status = cause;
+
+        for (OpenFile of: openFiles.values())
+            of.close();
+
+        for (UserProcess p: processes.values())
+            if (p.getParent() == this)
+                p.setParent(null);
+
         thread.finish();
     }
 
@@ -564,6 +572,11 @@ public class UserProcess {
             return 0;
     }
 
+    private int handleExit(int a0) {
+        finish(0);
+        return 0;
+    }
+
 	private static final int syscallHalt = 0, syscallExit = 1, syscallExec = 2,
 			syscallJoin = 3, syscallCreate = 4, syscallOpen = 5,
 			syscallRead = 6, syscallWrite = 7, syscallClose = 8,
@@ -663,6 +676,9 @@ public class UserProcess {
 
         case syscallJoin:
             return handleJoin(a0, a1);
+
+        case syscallExit:
+            return handleExit(a0);
 
 		default:
 			Lib.debug(dbgProcess, "Unknown syscall " + syscall);
