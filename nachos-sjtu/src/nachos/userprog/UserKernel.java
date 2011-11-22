@@ -3,6 +3,8 @@ package nachos.userprog;
 import nachos.machine.*;
 import nachos.threads.*;
 
+import java.util.LinkedList;
+
 /**
  * A kernel that can support multiple user processes.
  */
@@ -37,11 +39,12 @@ public class UserKernel extends ThreadedKernel {
                 break;
             }
 
-		int numPhysPages = Machine.processor().getNumPhysPages();
-        physPageUsed = new boolean[numPhysPages];
-        for (int i = 0; i < numPhysPages; ++i)
-            physPageUsed[i] = false;
         pageLock = new Lock();
+
+		int numPhysPages = Machine.processor().getNumPhysPages();
+        availablePages = new LinkedList<Integer>();
+        for (int i = 0; i < numPhysPages; ++i)
+            availablePages.add(new Integer(i));
 	}
 
 	/**
@@ -137,12 +140,8 @@ public class UserKernel extends ThreadedKernel {
         int ret = -1;
 
         pageLock.acquire();
-        for (int i = 0; i < physPageUsed.length; ++i)
-            if (physPageUsed[i] == false) {
-                physPageUsed[i] = true;
-                ret = i;
-                break;
-            }
+        if (availablePages.size() > 0)
+            ret = availablePages.removeFirst().intValue();
         pageLock.release();
 
         return ret;
@@ -152,10 +151,8 @@ public class UserKernel extends ThreadedKernel {
         boolean ret = false;
 
         pageLock.acquire();
-        if (ppn < physPageUsed.length && physPageUsed[ppn] == true) {
-            physPageUsed[ppn] = false;
-            ret = true;
-        }
+        availablePages.add(new Integer(ppn));
+        ret = true;
         pageLock.release();
 
         return ret;
@@ -167,5 +164,5 @@ public class UserKernel extends ThreadedKernel {
     private static int offsetLen, offsetMask, vpnMask;
 
     private static Lock pageLock;
-    private static boolean[] physPageUsed;
+    private static LinkedList<Integer> availablePages;
 }

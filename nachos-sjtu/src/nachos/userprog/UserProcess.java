@@ -24,6 +24,8 @@ public class UserProcess {
 	 */
 	public UserProcess() {
         pageTable = new TranslationEntry[Machine.processor().getNumPhysPages()];
+        for (int i = 0; i < pageTable.length; ++i)
+            pageTable[i] = new TranslationEntry(i, 0, false, false, false, false);
         numPages = 0;
 
         openFiles = new HashMap<Integer, OpenFile>();
@@ -89,7 +91,7 @@ public class UserProcess {
             if (ppn == -1)
                 return false;
 
-            pageTable[numPages] = new TranslationEntry(vpn + i,
+            pageTable[vpn + i] = new TranslationEntry(vpn + i,
                     ppn, true, readOnly, false, false);
             ++numPages;
         }
@@ -144,11 +146,10 @@ public class UserProcess {
         if (pageTable == null)
             return null;
 
-        for (int i = 0; i < numPages; ++i)
-            if (pageTable[i].vpn == vpn)
-                return pageTable[i];
-
-        return null;
+        if (vpn >= 0 && vpn < pageTable.length)
+            return pageTable[vpn];
+        else
+            return null;
     }
 
     private TranslationEntry translate(int vaddr) {
