@@ -71,8 +71,10 @@ public class PriorityScheduler extends Scheduler {
 		KThread thread = KThread.currentThread();
 
 		int priority = getPriority(thread);
-		if (priority == priorityMaximum)
+		if (priority == priorityMaximum) {
+            Machine.interrupt().restore(intStatus);
 			return false;
+        }
 
 		setPriority(thread, priority + 1);
 
@@ -239,17 +241,7 @@ public class PriorityScheduler extends Scheduler {
 		 * @return the effective priority of the associated thread.
 		 */
 		public int getEffectivePriority() {
-            int ret = priority;
-            for (PriorityQueue q: wantingList) {
-                if (q.transferPriority == false)
-                    continue;
-                for (KThread kt: q) {
-                    int t = PriorityScheduler.this.getThreadState(kt).getEffectivePriority();
-                    if (t > ret)
-                        ret = t;
-                }
-            }
-            return ret;
+            return getEffectivePriorityRaw(new HashSet<KThread>());
 		}
 
         protected int getEffectivePriorityRaw(Set<KThread> visited) {
@@ -261,6 +253,8 @@ public class PriorityScheduler extends Scheduler {
             visited.add(thread);
             int ret = priority;
             for (PriorityQueue q: wantingList) {
+                if (q.transferPriority == false)
+                    continue;
                 for (KThread kt: q) {
                     int t = PriorityScheduler.this.getThreadState(kt).getEffectivePriorityRaw(visited);
                     if (t > ret)
