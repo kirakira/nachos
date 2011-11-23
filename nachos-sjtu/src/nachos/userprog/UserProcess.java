@@ -108,6 +108,8 @@ public class UserProcess {
     }
 
     private boolean allocate(int vpn, int desiredPages, boolean readOnly) {
+        LinkedList<TranslationEntry> allocated = new LinkedList<TranslationEntry>();
+
         for (int i = 0; i < desiredPages; ++i) {
             if (vpn >= pageTable.length)
                 return false;
@@ -115,14 +117,32 @@ public class UserProcess {
             int ppn = UserKernel.newPage();
             if (ppn == -1) {
                 Lib.debug(dbgProcess, "\tcannot allocate new page");
-                return false;
-            }
 
-            pageTable[vpn + i] = new TranslationEntry(vpn + i,
-                    ppn, true, readOnly, false, false);
-            ++numPages;
+                for (TranslationEntry te: allocated) {
+                    pageTable[te.vpn] = new TranslationEntry(te.vpn, 0, false, false, false, false);
+                    UserKernel.deletePage(te.ppn);
+                    --numPages;
+                }
+
+                return false;
+            } else {
+                TranslationEntry a = new TranslationEntry(vpn + i,
+                        ppn, true, readOnly, false,false);
+                allocated.add(a);
+                pageTable[vpn + i] = a;
+                ++numPages;
+            }
         }
         return true;
+    }
+
+    private void releaseResource() {
+        for (int i = 0; i < pageTable.length; ++i)
+            if (pageTable[i].valid) {
+                UserKernel.deletePage(pageTable[i].ppn);
+                pageTable[i] = new TranslationEntry(pageTable[i].vpn, 0, false, false, false, false);
+            }
+        numPages = 0;
     }
 
     private void finish(int cause) {
@@ -135,9 +155,7 @@ public class UserProcess {
             if (p.getParent() == this)
                 p.setParent(null);
 
-        for (int i = 0; i < pageTable.length; ++i)
-            if (pageTable[i].valid)
-                UserKernel.deletePage(pageTable[i].ppn);
+        releaseResource();
 
         boolean halt = false;
         processLock.acquire();
@@ -345,8 +363,10 @@ public class UserProcess {
 				Lib.debug(dbgProcess, "\tfragmented executable");
 				return false;
 			}
-            if (!allocate(numPages, section.getLength(), section.isReadOnly()))
+            if (!allocate(numPages, section.getLength(), section.isReadOnly())) {
+                releaseResource();
                 return false;
+            }
 		}
 
 		// make sure the argv array will fit in one page
@@ -367,13 +387,17 @@ public class UserProcess {
 		initialPC = coff.getEntryPoint();
 
 		// next comes the stack; stack pointer initially points to top of it
-        if (!allocate(numPages, stackPages, false))
+        if (!allocate(numPages, stackPages, false)) {
+            releaseResource();
             return false;
+        }
 		initialSP = numPages * pageSize;
 
 		// and finally reserve 1 page for arguments
-        if (!allocate(numPages, 1, false))
+        if (!allocate(numPages, 1, false)) {
+            releaseResource();
             return false;
+        }
 
 		if (!loadSections())
 			return false;
