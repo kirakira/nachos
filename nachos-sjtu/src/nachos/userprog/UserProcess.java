@@ -143,6 +143,8 @@ public class UserProcess {
                 pageTable[i] = new TranslationEntry(pageTable[i].vpn, 0, false, false, false, false);
             }
         numPages = 0;
+
+        coff.close();
     }
 
     private void finish(int cause) {
