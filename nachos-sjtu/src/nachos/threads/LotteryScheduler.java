@@ -26,26 +26,26 @@ import nachos.machine.Machine;
  * maximum).
  */
 public class LotteryScheduler extends PriorityScheduler {
-	/**
-	 * Allocate a new lottery scheduler.
-	 */
-	public LotteryScheduler() {
-	}
+    /**
+     * Allocate a new lottery scheduler.
+     */
+    public LotteryScheduler() {
+    }
 
-	/**
-	 * Allocate a new lottery thread queue.
-	 * 
-	 * @param transferPriority
-	 *            <tt>true</tt> if this queue should transfer tickets from
-	 *            waiting threads to the owning thread.
-	 * @return a new lottery thread queue.
-	 */
-	public ThreadQueue newThreadQueue(boolean transferPriority) {
+    /**
+     * Allocate a new lottery thread queue.
+     * 
+     * @param transferPriority
+     *            <tt>true</tt> if this queue should transfer tickets from
+     *            waiting threads to the owning thread.
+     * @return a new lottery thread queue.
+     */
+    public ThreadQueue newThreadQueue(boolean transferPriority) {
         return new LotteryQueue(transferPriority);
-	}
+    }
 
     public void setPriority(KThread thread, int priority) {
-		Lib.assertTrue(Machine.interrupt().disabled());
+        Lib.assertTrue(Machine.interrupt().disabled());
 
         Lib.assertTrue(priority >= 1);
 
@@ -53,45 +53,45 @@ public class LotteryScheduler extends PriorityScheduler {
     }
 
     public boolean increasePriority() {
-		boolean intStatus = Machine.interrupt().disable();
+        boolean intStatus = Machine.interrupt().disable();
 
-		KThread thread = KThread.currentThread();
+        KThread thread = KThread.currentThread();
 
-		int priority = getPriority(thread);
+        int priority = getPriority(thread);
         if (priority == Integer.MAX_VALUE) {
             Machine.interrupt().restore(intStatus);
             return false;
         }
 
-		setPriority(thread, priority + 1);
+        setPriority(thread, priority + 1);
 
-		Machine.interrupt().restore(intStatus);
-		return true;
+        Machine.interrupt().restore(intStatus);
+        return true;
     }
 
     public boolean decreasePriority() {
-		boolean intStatus = Machine.interrupt().disable();
+        boolean intStatus = Machine.interrupt().disable();
 
-		KThread thread = KThread.currentThread();
+        KThread thread = KThread.currentThread();
 
-		int priority = getPriority(thread);
-		if (priority == 1) {
+        int priority = getPriority(thread);
+        if (priority == 1) {
             Machine.interrupt().restore(intStatus);
-			return false;
+            return false;
         }
 
-		setPriority(thread, priority - 1);
+        setPriority(thread, priority - 1);
         
         Machine.interrupt().restore(intStatus);
         return true;
     }
 
-	protected ThreadState getThreadState(KThread thread) {
-		if (thread.schedulingState == null)
-			thread.schedulingState = new ThreadState(thread);
+    protected ThreadState getThreadState(KThread thread) {
+        if (thread.schedulingState == null)
+            thread.schedulingState = new ThreadState(thread);
 
-		return (ThreadState) thread.schedulingState;
-	}
+        return (ThreadState) thread.schedulingState;
+    }
 
     protected class LotteryQueue extends PriorityQueue {
         public LotteryQueue(boolean transferPriority) {

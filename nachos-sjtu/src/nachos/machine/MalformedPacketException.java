@@ -7,9 +7,9 @@ package nachos.machine;
  */
 @SuppressWarnings("serial")
 public class MalformedPacketException extends Exception {
-	/**
-	 * Allocate a new <tt>MalformedPacketException</tt>.
-	 */
-	public MalformedPacketException() {
-	}
+    /**
+     * Allocate a new <tt>MalformedPacketException</tt>.
+     */
+    public MalformedPacketException() {
+    }
 }

@@ -19,59 +19,59 @@ import nachos.machine.*;
  * value could change immediately after you read it).
  */
 public class Lock {
-	/**
-	 * Allocate a new lock. The lock will initially be <i>free</i>.
-	 */
-	public Lock() {
-	}
+    /**
+     * Allocate a new lock. The lock will initially be <i>free</i>.
+     */
+    public Lock() {
+    }
 
-	/**
-	 * Atomically acquire this lock. The current thread must not already hold
-	 * this lock.
-	 */
-	public void acquire() {
-		Lib.assertTrue(!isHeldByCurrentThread());
+    /**
+     * Atomically acquire this lock. The current thread must not already hold
+     * this lock.
+     */
+    public void acquire() {
+        Lib.assertTrue(!isHeldByCurrentThread());
 
-		boolean intStatus = Machine.interrupt().disable();
-		KThread thread = KThread.currentThread();
+        boolean intStatus = Machine.interrupt().disable();
+        KThread thread = KThread.currentThread();
 
-		if (lockHolder != null) {
-			waitQueue.waitForAccess(thread);
-			KThread.sleep();
-		} else {
-			waitQueue.acquire(thread);
-			lockHolder = thread;
-		}
+        if (lockHolder != null) {
+            waitQueue.waitForAccess(thread);
+            KThread.sleep();
+        } else {
+            waitQueue.acquire(thread);
+            lockHolder = thread;
+        }
 
-		Lib.assertTrue(lockHolder == thread);
+        Lib.assertTrue(lockHolder == thread);
 
-		Machine.interrupt().restore(intStatus);
-	}
+        Machine.interrupt().restore(intStatus);
+    }
 
-	/**
-	 * Atomically release this lock, allowing other threads to acquire it.
-	 */
-	public void release() {
-		Lib.assertTrue(isHeldByCurrentThread());
+    /**
+     * Atomically release this lock, allowing other threads to acquire it.
+     */
+    public void release() {
+        Lib.assertTrue(isHeldByCurrentThread());
 
-		boolean intStatus = Machine.interrupt().disable();
+        boolean intStatus = Machine.interrupt().disable();
 
-		if ((lockHolder = waitQueue.nextThread()) != null)
-			lockHolder.ready();
+        if ((lockHolder = waitQueue.nextThread()) != null)
+            lockHolder.ready();
 
-		Machine.interrupt().restore(intStatus);
-	}
+        Machine.interrupt().restore(intStatus);
+    }
 
-	/**
-	 * Test if the current thread holds this lock.
-	 * 
-	 * @return true if the current thread holds this lock.
-	 */
-	public boolean isHeldByCurrentThread() {
-		return (lockHolder == KThread.currentThread());
-	}
+    /**
+     * Test if the current thread holds this lock.
+     * 
+     * @return true if the current thread holds this lock.
+     */
+    public boolean isHeldByCurrentThread() {
+        return (lockHolder == KThread.currentThread());
+    }
 
-	private KThread lockHolder = null;
-	private ThreadQueue waitQueue = ThreadedKernel.scheduler
-			.newThreadQueue(true);
+    private KThread lockHolder = null;
+    private ThreadQueue waitQueue = ThreadedKernel.scheduler
+            .newThreadQueue(true);
 }

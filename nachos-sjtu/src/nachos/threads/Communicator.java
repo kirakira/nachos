@@ -10,10 +10,10 @@ import java.util.*;
  * be paired off at this point.
  */
 public class Communicator {
-	/**
-	 * Allocate a new communicator.
-	 */
-	public Communicator() {
+    /**
+     * Allocate a new communicator.
+     */
+    public Communicator() {
         listener = 0;
         id_acc = 0;
         speakers = new HashMap<Integer, Integer>();
@@ -21,7 +21,7 @@ public class Communicator {
         lock = new Lock();
         cvListener = new Condition(lock);
         cvSpeaker = new Condition(lock);
-	}
+    }
 
     private Integer getId() {
         int ret = id_acc;
@@ -29,18 +29,18 @@ public class Communicator {
         return new Integer(ret);
     }
 
-	/**
-	 * Wait for a thread to listen through this communicator, and then transfer
-	 * <i>word</i> to the listener.
-	 * 
-	 * <p>
-	 * Does not return until this thread is paired up with a listening thread.
-	 * Exactly one listener should receive <i>word</i>.
-	 * 
-	 * @param word
-	 *            the integer to transfer.
-	 */
-	public void speak(int word) {
+    /**
+     * Wait for a thread to listen through this communicator, and then transfer
+     * <i>word</i> to the listener.
+     * 
+     * <p>
+     * Does not return until this thread is paired up with a listening thread.
+     * Exactly one listener should receive <i>word</i>.
+     * 
+     * @param word
+     *            the integer to transfer.
+     */
+    public void speak(int word) {
         lock.acquire();
 
         Integer id = getId();
@@ -58,15 +58,15 @@ public class Communicator {
         } while (speakers.containsKey(id));
 
         lock.release();
-	}
+    }
 
-	/**
-	 * Wait for a thread to speak through this communicator, and then return the
-	 * <i>word</i> that thread passed to <tt>speak()</tt>.
-	 * 
-	 * @return the integer transferred.
-	 */
-	public int listen() {
+    /**
+     * Wait for a thread to speak through this communicator, and then return the
+     * <i>word</i> that thread passed to <tt>speak()</tt>.
+     * 
+     * @return the integer transferred.
+     */
+    public int listen() {
         lock.acquire();
 
         while (speakers.size() == 0) {
@@ -88,7 +88,7 @@ public class Communicator {
         lock.release();
 
         return word;
-	}
+    }
 
     private int listener;
     private int id_acc;

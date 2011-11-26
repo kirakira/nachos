@@ -46,7 +46,7 @@ public class BoatGrader extends BasicTestGrader
   protected int adultsMolokai, childrenMolokai;
   
   /**
-	 */
+     */
   protected void check (boolean value, String msg)
   {
     Lib.assertTrue(value, msg);

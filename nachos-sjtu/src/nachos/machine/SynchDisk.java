@@ -34,98 +34,98 @@ import nachos.threads.Semaphore;
 // returning.
 public class SynchDisk {
 
-	Disk disk; // Raw disk device
+    Disk disk; // Raw disk device
 
-	Semaphore semaphore; // To synchronize requesting thread
+    Semaphore semaphore; // To synchronize requesting thread
 
-	// with the interrupt handler
-	Lock lock; // Only one read/write request
+    // with the interrupt handler
+    Lock lock; // Only one read/write request
 
-	// can be sent to the disk at a time
-	SynchDiskIntHandler handler; // internal handler
+    // can be sent to the disk at a time
+    SynchDiskIntHandler handler; // internal handler
 
-	// ----------------------------------------------------------------------
-	// SynchDisk
-	// Initialize the synchronous interface to the physical disk, in turn
-	// initializing the physical disk.
-	//
-	// "name" -- UNIX file name to be used as storage for the disk data
-	// (usually, "DISK")
-	// ----------------------------------------------------------------------
+    // ----------------------------------------------------------------------
+    // SynchDisk
+    // Initialize the synchronous interface to the physical disk, in turn
+    // initializing the physical disk.
+    //
+    // "name" -- UNIX file name to be used as storage for the disk data
+    // (usually, "DISK")
+    // ----------------------------------------------------------------------
 
-	public SynchDisk(Privilege privilege, String name) {
+    public SynchDisk(Privilege privilege, String name) {
 
-		handler = new SynchDiskIntHandler(this);
-		disk = new Disk(privilege, name, handler);
+        handler = new SynchDiskIntHandler(this);
+        disk = new Disk(privilege, name, handler);
 
-	}
+    }
 
-	// ----------------------------------------------------------------------
-	// readSector
-	// Read the contents of a disk sector into a buffer. Return only
-	// after the data has been read.
-	//
-	// "sectorNumber" -- the disk sector to read
-	// "data" -- the buffer to hold the contents of the disk sector
-	// ----------------------------------------------------------------------
+    // ----------------------------------------------------------------------
+    // readSector
+    // Read the contents of a disk sector into a buffer. Return only
+    // after the data has been read.
+    //
+    // "sectorNumber" -- the disk sector to read
+    // "data" -- the buffer to hold the contents of the disk sector
+    // ----------------------------------------------------------------------
 
-	public void readSector(int sectorNumber, byte[] data, int index) {
-		lock().acquire(); // only one disk I/O at a time
-		disk.readRequest(sectorNumber, data, index);
-		semaphore().P(); // wait for interrupt
-		lock().release();
-	}
+    public void readSector(int sectorNumber, byte[] data, int index) {
+        lock().acquire(); // only one disk I/O at a time
+        disk.readRequest(sectorNumber, data, index);
+        semaphore().P(); // wait for interrupt
+        lock().release();
+    }
 
-	private Semaphore semaphore() {
-		if (semaphore == null)
-			semaphore = new Semaphore(0);
-		return semaphore;
-	}
+    private Semaphore semaphore() {
+        if (semaphore == null)
+            semaphore = new Semaphore(0);
+        return semaphore;
+    }
 
-	private Lock lock() {
-		if (lock == null)
-			lock = new Lock();
-		return lock;
-	}
+    private Lock lock() {
+        if (lock == null)
+            lock = new Lock();
+        return lock;
+    }
 
-	// ----------------------------------------------------------------------
-	// writeSector
-	// Write the contents of a buffer into a disk sector. Return only
-	// after the data has been written.
-	//
-	// "sectorNumber" -- the disk sector to be written
-	// "data" -- the new contents of the disk sector
-	// ----------------------------------------------------------------------
+    // ----------------------------------------------------------------------
+    // writeSector
+    // Write the contents of a buffer into a disk sector. Return only
+    // after the data has been written.
+    //
+    // "sectorNumber" -- the disk sector to be written
+    // "data" -- the new contents of the disk sector
+    // ----------------------------------------------------------------------
 
-	public void writeSector(int sectorNumber, byte[] data, int index) {
-		lock().acquire(); // only one disk I/O at a time
-		disk.writeRequest(sectorNumber, data, index);
-		semaphore().P(); // wait for interrupt
-		lock().release();
-	}
+    public void writeSector(int sectorNumber, byte[] data, int index) {
+        lock().acquire(); // only one disk I/O at a time
+        disk.writeRequest(sectorNumber, data, index);
+        semaphore().P(); // wait for interrupt
+        lock().release();
+    }
 
-	// ----------------------------------------------------------------------
-	// requestDone
-	// Disk interrupt handler. Wake up any thread waiting for the disk
-	// request to finish.
-	// ----------------------------------------------------------------------
+    // ----------------------------------------------------------------------
+    // requestDone
+    // Disk interrupt handler. Wake up any thread waiting for the disk
+    // request to finish.
+    // ----------------------------------------------------------------------
 
-	public void requestDone() {
-		semaphore().V();
-	}
+    public void requestDone() {
+        semaphore().V();
+    }
 
 }
 
 // SynchDisk interrupt handler class
 //
 class SynchDiskIntHandler implements Runnable {
-	private SynchDisk disk;
+    private SynchDisk disk;
 
-	public SynchDiskIntHandler(SynchDisk dsk) {
-		disk = dsk;
-	}
+    public SynchDiskIntHandler(SynchDisk dsk) {
+        disk = dsk;
+    }
 
-	public void run() {
-		disk.requestDone();
-	}
+    public void run() {
+        disk.requestDone();
+    }
 }
