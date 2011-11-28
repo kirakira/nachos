@@ -621,6 +621,7 @@ public class UserProcess {
     }
 
     private int handleExit(int a0) {
+        code = a0;
         finish(0);
         return 0;
     }
@@ -730,6 +731,7 @@ public class UserProcess {
 
         default:
             Lib.debug(dbgProcess, "Unknown syscall " + syscall);
+            finish(UserProcess.exceptionIllegalSyscall);
             Lib.assertNotReached("Unknown system call!");
         }
         return 0;
@@ -764,6 +766,8 @@ public class UserProcess {
             Lib.assertNotReached("Unexpected exception");
         }
     }
+
+    public static final int exceptionIllegalSyscall = 100;
 
     /** The program being run by this process. */
     protected Coff coff;
