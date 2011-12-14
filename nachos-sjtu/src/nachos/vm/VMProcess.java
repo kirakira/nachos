@@ -15,6 +15,36 @@ public class VMProcess extends UserProcess {
         super();
     }
 
+    public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
+    }
+
+    public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length) {
+    }
+
+    private boolean allocate(int vpn, int desiredPages, boolean readOnly) {
+    }
+
+    private void loadPage(int vaddr) {
+        Processor processor = Machine.processor();
+
+        for (int i = 0; i < processor.getTLBSize(); ++i) {
+            TranslationEntry entry = processor.readTLBEntry(i);
+            if (entry.vpn == UserKernel.vpn(vaddr))
+                return;
+        }
+        
+        handleTLBMiss(vaddr);
+    }
+
+    private void handleTLBMiss(int vaddr) {
+        VMKernel.pageLock.acquire();
+
+        VMKernel.pageLock.release();
+    }
+
+    private void releaseResource() {
+    }
+
     /**
      * Save the state of this process in preparation for a context switch.
      * Called by <tt>UThread.saveState()</tt>.
@@ -60,6 +90,10 @@ public class VMProcess extends UserProcess {
         Processor processor = Machine.processor();
 
         switch (cause) {
+        case Processor.exceptionTLBMiss:
+            handleTLBMiss(processor.readRegister(Processor.regBadVAddr));
+            break;
+
         default:
             super.handleException(cause);
             break;

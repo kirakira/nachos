@@ -1,0 +1,12 @@
+Purpose:
+Test your arguments passing, with a simple echo program.
+It needs a demand-load page for passing arguments, before the thread is actually forked.
+
+Usage:
+-- nachos.ag.VMGrader -x vm_echo.coff -# output=vm_echo.out
+
+Author:
+Cheng Yu
+
+History:
+2010-01-16 Cheng Yu: The first version.

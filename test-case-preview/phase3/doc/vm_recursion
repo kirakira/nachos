@@ -1,0 +1,25 @@
+Purpose:
+Test the demand paging and reading/writing memory.
+
+Usage:
+-- nachos.ag.VMGrader -x vm_recursion.coff -# coffPar0=xxx,coffPar1=xxx,swapFile=xxx
+
+Author:
+Xiangru Chen
+
+History:
+2008-12-26 Xiangru Chen: The first version.
+
+Arguments:
+coffPar0: the depth of the recursion. At each level, an array of page-size will be placed in the stack.
+coffPar1: the skip factor. It means that, only (PAGE_SIZE / (2 ^ "skip factor")) bytes in each page will be used. When the test seems too slow, increase this value to speed it up.
+swapFile: the name of the swap file.
+
+Sample:
+-- nachos.ag.VMGrader -x vm_recursion.coff -# coffPar0=20,coffPar1=0,swapFile=SWAP0
+
+Restrictions:
+To run this test, the number of physical pages should be no more than 16.
+
+Note:
+This test needs a stack of more than 8 pages, if your stack size is fixed at 8, you can feel free to ignore this test:p

@@ -78,7 +78,7 @@ public class UserProcess {
 
         processLock.acquire();
         ++activeProcesses;
-        Lib.debug(dbgProcess, "process created: " + activeProcesses);
+        Lib.debug(dbgProcess, "process created, pid = " + pid);
         processLock.release();
 
         setParent(UserKernel.currentProcess());
@@ -143,8 +143,6 @@ public class UserProcess {
                 pageTable[i] = new TranslationEntry(pageTable[i].vpn, 0, false, false, false, false);
             }
         numPages = 0;
-
-        coff.close();
     }
 
     private void finish(int cause) {
@@ -152,6 +150,7 @@ public class UserProcess {
 
         for (OpenFile of: openFiles.values())
             of.close();
+        coff.close();
 
         for (UserProcess p: processes.values())
             if (p.getParent() == this)
@@ -724,6 +723,7 @@ public class UserProcess {
             return handleExec(a0, a1, a2);
 
         case syscallJoin:
+            Lib.debug(dbgProcess, "Join called from process " + pid);
             return handleJoin(a0, a1);
 
         case syscallExit:
@@ -778,7 +778,7 @@ public class UserProcess {
     protected int numPages;
 
     /** The number of pages in the program's stack. */
-    protected final int stackPages = 8;
+    protected final int stackPages = Config.getInteger("Processor.numStackPages", 8);
 
     private int initialPC, initialSP;
     private int argc, argv;

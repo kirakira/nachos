@@ -1,0 +1,17 @@
+Purpose:
+Test whether the system uses lazy-loading.
+
+Usage:
+-- nachos.ag.VMGrader -x vm_lazyload.coff -# swapFile=VirtualMemory.bak
+
+Author:
+Xiangru Chen
+
+History:
+2008-12-26 Xiangru Chen: The first version.
+
+Arguments:
+swapFile: the name of the swap file.
+
+Restrictions:
+To run this test, the number of physical pages should be no more than 16.

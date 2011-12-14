@@ -11,10 +11,12 @@
 int main(int argc, char* argv[])
 {
 	int id = atoi(argv[1]);
+    int i;
 	if (id <= 0)
 	{
 		while (true)
 		{
+            i = 1;
 		}
 	}
 	else

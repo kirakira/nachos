@@ -1,0 +1,24 @@
+Purpose:
+Test whether the system can reuse the spaces in swap file left by the finished processes.
+
+Usage:
+-- nachos.ag.VMGrader -x vm_reuse.coff -# coffPar0=xxx,swapFile=xxx
+
+Author:
+Xiangru Chen
+
+History:
+2008-12-26 Xiangru Chen: The first version.
+
+Dependencies:
+vm_reuse_child.coff
+
+Arguments:
+coffPar0: number of child processes that will be forked. 10 is recommended.
+swapFile: the name of the swap file.
+
+Sample:
+-- nachos.ag.VMGrader -x vm_reuse.coff -# coffPar0=10,swapFile=SWAP0
+
+Restrictions:
+To run this test, the number of physical pages should be no more than 4.
