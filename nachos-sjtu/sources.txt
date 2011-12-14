@@ -1,4 +1,8 @@
 ./src/nachos/vm/VMKernel.java
+./src/nachos/vm/PageTable.java
+./src/nachos/vm/FatalError.java
+./src/nachos/vm/IntPair.java
+./src/nachos/vm/SwapfileManager.java
 ./src/nachos/vm/VMProcess.java
 ./src/nachos/security/NachosSecurityManager.java
 ./src/nachos/security/Privilege.java

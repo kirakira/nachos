@@ -54,11 +54,11 @@ public class UserProcess {
         return (UserProcess) Lib.constructObject(Machine.getProcessClassName());
     }
 
-    private void setParent(UserProcess p) {
+    protected void setParent(UserProcess p) {
         parent = p;
     }
 
-    private UserProcess getParent() {
+    protected UserProcess getParent() {
         return parent;
     }
 
@@ -107,7 +107,7 @@ public class UserProcess {
         return pid;
     }
 
-    private boolean allocate(int vpn, int desiredPages, boolean readOnly) {
+    protected boolean allocate(int vpn, int desiredPages, boolean readOnly) {
         LinkedList<TranslationEntry> allocated = new LinkedList<TranslationEntry>();
 
         for (int i = 0; i < desiredPages; ++i) {
@@ -136,7 +136,7 @@ public class UserProcess {
         return true;
     }
 
-    private void releaseResource() {
+    protected void releaseResource() {
         for (int i = 0; i < pageTable.length; ++i)
             if (pageTable[i].valid) {
                 UserKernel.deletePage(pageTable[i].ppn);
@@ -145,7 +145,7 @@ public class UserProcess {
         numPages = 0;
     }
 
-    private void finish(int cause) {
+    protected void finish(int cause) {
         status = cause;
 
         for (OpenFile of: openFiles.values())
@@ -216,7 +216,7 @@ public class UserProcess {
         return readVirtualMemory(vaddr, data, 0, data.length);
     }
 
-    private TranslationEntry lookUpPageTable(int vpn) {
+    protected TranslationEntry lookUpPageTable(int vpn) {
         if (pageTable == null)
             return null;
 
@@ -226,7 +226,7 @@ public class UserProcess {
             return null;
     }
 
-    private TranslationEntry translate(int vaddr) {
+    protected TranslationEntry translate(int vaddr) {
         return lookUpPageTable(UserKernel.vpn(vaddr));
     }
 
@@ -338,7 +338,7 @@ public class UserProcess {
      *            the arguments to pass to the executable.
      * @return <tt>true</tt> if the executable was successfully loaded.
      */
-    private boolean load(String name, String[] args) {
+    protected boolean load(String name, String[] args) {
         Lib.debug(dbgProcess, "UserProcess.load(\"" + name + "\")");
 
         OpenFile executable = ThreadedKernel.fileSystem.open(name, false);
@@ -489,7 +489,7 @@ public class UserProcess {
     /**
      * Handle the halt() system call.
      */
-    private int handleHalt() {
+    protected int handleHalt() {
 
         if (pid == 1) {
             Machine.halt();
@@ -499,11 +499,11 @@ public class UserProcess {
         return 0;
     }
 
-    private int nextFileId() {
+    protected int nextFileId() {
         return ++fileId;
     }
 
-    private int openFile(int a0, boolean create) {
+    protected int openFile(int a0, boolean create) {
         String file = readVirtualMemoryString(a0, maxArgLen);
         if (file == null)
             return -1;
@@ -518,15 +518,15 @@ public class UserProcess {
         return id;
     }
 
-    private int handleCreat(int a0) {
+    protected int handleCreat(int a0) {
         return openFile(a0, true);
     }
 
-    private int handleOpen(int a0) {
+    protected int handleOpen(int a0) {
         return openFile(a0, false);
     }
 
-    private int handleRead(int a0, int a1, int a2) {
+    protected int handleRead(int a0, int a1, int a2) {
         OpenFile of = openFiles.get(a0);
         if (of == null)
             return -1;
@@ -543,7 +543,7 @@ public class UserProcess {
         return ret;
     }
 
-    private int handleWrite(int a0, int a1, int a2) {
+    protected int handleWrite(int a0, int a1, int a2) {
         OpenFile of = openFiles.get(a0);
         if (of == null)
             return -1;
@@ -556,7 +556,7 @@ public class UserProcess {
         return ret;
     }
 
-    private int handleClose(int a0) {
+    protected int handleClose(int a0) {
         if (!openFiles.containsKey(new Integer(a0)))
             return -1;
 
@@ -564,7 +564,7 @@ public class UserProcess {
         return 0;
     }
 
-    private int handleUnlink(int a0) {
+    protected int handleUnlink(int a0) {
         String file = readVirtualMemoryString(a0, maxArgLen);
         if (file == null)
             return -1;
@@ -575,7 +575,7 @@ public class UserProcess {
             return -1;
     }
 
-    private int handleExec(int a0, int a1, int a2) {
+    protected int handleExec(int a0, int a1, int a2) {
         String file = readVirtualMemoryString(a0, maxArgLen);
         if (file == null)
             return -1;
@@ -601,7 +601,7 @@ public class UserProcess {
         return child.getPid();
     }
 
-    private int handleJoin(int a0, int a1) {
+    protected int handleJoin(int a0, int a1) {
         if (!processes.containsKey(new Integer(a0)))
             return -1;
 
@@ -619,13 +619,13 @@ public class UserProcess {
             return 0;
     }
 
-    private int handleExit(int a0) {
+    protected int handleExit(int a0) {
         code = a0;
         finish(0);
         return 0;
     }
 
-    private static final int syscallHalt = 0, syscallExit = 1, syscallExec = 2,
+    protected static final int syscallHalt = 0, syscallExit = 1, syscallExec = 2,
             syscallJoin = 3, syscallCreate = 4, syscallOpen = 5,
             syscallRead = 6, syscallWrite = 7, syscallClose = 8,
             syscallUnlink = 9;
@@ -780,25 +780,25 @@ public class UserProcess {
     /** The number of pages in the program's stack. */
     protected final int stackPages = Config.getInteger("Processor.numStackPages", 8);
 
-    private int initialPC, initialSP;
-    private int argc, argv;
+    protected int initialPC, initialSP;
+    protected int argc, argv;
 
-    private static final int pageSize = Processor.pageSize;
-    private static final char dbgProcess = 'a';
+    protected static final int pageSize = Processor.pageSize;
+    protected static final char dbgProcess = 'a';
 
-    private Map<Integer, OpenFile> openFiles;
-    private int fileId;
-    private static final int maxArgLen = 256;
+    protected Map<Integer, OpenFile> openFiles;
+    protected int fileId;
+    protected static final int maxArgLen = 256;
 
-    private static int pidCounter = 0;
-    private int pid;
+    protected static int pidCounter = 0;
+    protected int pid;
 
-    private static Map<Integer, UserProcess> processes = new HashMap<Integer, UserProcess>();
-    private static Lock processLock = new Lock();
-    private static int activeProcesses = 0;
+    protected static Map<Integer, UserProcess> processes = new HashMap<Integer, UserProcess>();
+    protected static Lock processLock = new Lock();
+    protected static int activeProcesses = 0;
 
-    private int status = 0, code = 0;
+    protected int status = 0, code = 0;
 
-    private UThread thread;
-    private UserProcess parent;
+    protected UThread thread;
+    protected UserProcess parent;
 }

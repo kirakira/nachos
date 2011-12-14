@@ -1,5 +1,8 @@
 package nachos.vm;
 
+import nachos.threads.ThreadedKernel;
+import nachos.machine.*;
+
 import java.util.*;
 
 class SwapEntry {
@@ -7,7 +10,7 @@ class SwapEntry {
     public int vpn;
 }
 
-class SwapfileManager {
+public class SwapfileManager {
     private static SwapfileManager instance = null;
 
     private Map<IntPair, Integer> swapTable;
@@ -18,7 +21,7 @@ class SwapfileManager {
     public static final String swapFileName = "SWAP";
 
     private SwapfileManager() throws FatalError {
-        pageSize = Processor.pageSize;
+        pageSize = Machine.processor().pageSize;
         swapTable = new HashMap<IntPair, Integer>();
         holes = new LinkedList<Integer>();
 
@@ -27,7 +30,7 @@ class SwapfileManager {
             throw new FatalError("cannot open swap file: " + swapFileName);
     }
 
-    public SwapfileManager getInstance() throws FatalError {
+    public static SwapfileManager getInstance() throws FatalError {
         if (instance == null)
             instance = new SwapfileManager();
         return instance;
@@ -45,22 +48,22 @@ class SwapfileManager {
             return ret.intValue();
     }
 
-    private int addEntry(int pid, int vpn) {
+    public int addEntry(int pid, int vpn) {
         int pos = findEntry(pid, vpn);
         if (pos != -1)
             return pos;
 
         if (holes.size() == 0)
-            holes.add(new Integer(pageTable.size()));
+            holes.add(new Integer(swapTable.size()));
 
         Integer i = holes.poll();
         swapTable.put(new IntPair(pid, vpn), i);
         return i.intValue();
     }
 
-    public int writeToSwapfile(int pid, int vpn, byte[] page) {
+    public int writeToSwapfile(int pid, int vpn, byte[] page, int offset) {
         int pos = addEntry(pid, vpn);
-        swapFile.write(pos * pageSize, page, 0, pageSize);
+        swapFile.write(pos * pageSize, page, offset, pageSize);
         return pos;
     }
 
@@ -70,11 +73,13 @@ class SwapfileManager {
             return null;
 
         byte[] ret = new byte[pageSize];
-        swapFile.read(pos * pageSize, ret, 0, pageSize);
-        return ret;
+        if (swapFile.read(pos * pageSize, ret, 0, pageSize) == -1)
+            return new byte[pageSize];
+        else
+            return ret;
     }
 
-    public void remove(int pid, int vpn) {
+    public void removeEntry(int pid, int vpn) {
         if (findEntry(pid, vpn) == -1)
             return;
         holes.add(swapTable.remove(new IntPair(pid, vpn)));

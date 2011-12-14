@@ -1,16 +1,19 @@
 package nachos.vm;
 
+import nachos.machine.Machine;
+import nachos.machine.TranslationEntry;
+
 import java.util.*;
 
 class PageTable {
     private static PageTable instance = null;
 
     private Map<IntPair, TranslationEntry> pageTable;
-    private ArrayList<TranslationEntry> coreMap;
+    private TranslationEntry[] coreMap;
 
     private PageTable() {
         pageTable = new HashMap<IntPair, TranslationEntry>();
-        coreMap = new ArrayList<IntPair, TranslationEntry>();
+        coreMap = new TranslationEntry[Machine.processor().getNumPhysPages()];
     }
 
     public static PageTable getInstance() {
@@ -27,18 +30,35 @@ class PageTable {
             return null;
     }
 
-    public void setEntry(int pid, TranslationEntry entry) {
+    private TranslationEntry combine(TranslationEntry e1, TranslationEntry e2) {
+        return new TranslationEntry(e1.vpn, e1.ppn, e1.valid,
+                e1.readOnly, e1.used || e2.used, e1.dirty || e2.dirty);
+    }
+
+    private void setEntryRaw(int pid, TranslationEntry entry, boolean combineEntries) {
         IntPair vip = new IntPair(pid, entry.vpn),
                 pip = new IntPair(pid, entry.ppn);
         if (!pageTable.containsKey(vip))
             return;
 
-        if (pageTable.get(vip).valid)
-            coreMap.set(pageTable.get(vip).ppn, null);
-        if (entry.valid)
-            coreMap.set(entry.ppn, new TranslationEntry(entry));
+        TranslationEntry old = pageTable.get(vip);
+        TranslationEntry supplant = combineEntries ?
+            combine(entry, old) : new TranslationEntry(entry);
 
-        pageTable.put(vip, new TranslationEntry(entry));
+        if (pageTable.get(vip).valid)
+            coreMap[pageTable.get(vip).ppn] = null;
+        if (entry.valid)
+            coreMap[entry.ppn] = supplant;
+
+        pageTable.put(vip, supplant);
+    }
+
+    public void setEntry(int pid, TranslationEntry entry) {
+        setEntryRaw(pid, entry, false);
+    }
+
+    public void combineEntry(int pid, TranslationEntry entry) {
+        setEntryRaw(pid, entry, true);
     }
 
     public boolean addEntry(int pid, TranslationEntry entry) {
@@ -48,18 +68,25 @@ class PageTable {
 
         pageTable.put(ip, new TranslationEntry(entry));
         if (entry.valid)
-            coreMap.put(new IntPair(pid, entry.ppn), new TranslationEntry(entry));
+            coreMap[entry.ppn] = new TranslationEntry(entry);
 
         return true;
     }
 
-    public void removeEntries(int pid) {
-        for (Map.Entry<IntPair, TranslationEntry> entry:
-                new HashSet<Map.Entry<IntPair, TranslationEntry>>(pageTable.entrySet())) {
-            if (entry.getKey().pid == pid)
-                pageTable.remove(entry.getKey);
-        }
+    public TranslationEntry removeEntry(int pid, int vpn) {
+        TranslationEntry entry = pageTable.remove(new IntPair(pid, vpn));
+        if (entry != null)
+            coreMap[entry.ppn] = null;
+        return entry;
+    }
 
+    public TranslationEntry pickVictim() {
+        Random rand = new Random();
+        TranslationEntry ret = null;
+        do {
+            ret = coreMap[rand.nextInt(coreMap.length)];
+        } while (ret.valid == false);
 
+        return ret;
     }
 }

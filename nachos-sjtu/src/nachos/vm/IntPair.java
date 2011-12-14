@@ -1,6 +1,6 @@
 package nachos.vm;
 
-class IntPair {
+public class IntPair {
     public int int1, int2;
 
     public IntPair(int int1, int int2) {
