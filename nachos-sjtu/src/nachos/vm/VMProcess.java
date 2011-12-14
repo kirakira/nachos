@@ -76,20 +76,18 @@ public class VMProcess extends UserProcess {
         int ppn = VMKernel.newPage();
 
         if (ppn == -1) {
-            TranslationEntry victim = PageTable.getInstance().pickVictim();
+            TranslationEntryWithPid victim = PageTable.getInstance().pickVictim();
 
-            ppn = victim.ppn;
-            swapOut(victim.vpn);
+            ppn = victim.entry.ppn;
+            swapOut(victim.pid, victim.entry.vpn);
         }
 
         return ppn;
     }
 
     protected boolean allocate(int vpn, int desiredPages, boolean readOnly) {
-        if (lazySections.containsKey(new Integer(vpn)))
-            return false;
-        if (lookUpPageTable(vpn) != null)
-            return false;
+        Lib.assertTrue(!lazySections.containsKey(new Integer(vpn)), "page " + vpn + " already existed in lazySection");
+        Lib.assertTrue(lookUpPageTable(vpn) == null, "page " + vpn + " already existed in PageTable");
 
         for (int i = 0; i < desiredPages; ++i) {
             PageTable.getInstance().addEntry(pid, new TranslationEntry(vpn + i, 0, false, readOnly, false, false));
@@ -119,28 +117,20 @@ public class VMProcess extends UserProcess {
         Machine.processor().writeTLBEntry(index, supplant);
     }
 
-    protected void loadLazySection(int vpn) {
+    protected void loadLazySection(int vpn, int ppn) {
         IntPair ip = lazySections.remove(new Integer(vpn));
         if (ip == null)
             return;
 
         CoffSection section = coff.getSection(ip.int1);
-        
-        Lib.assertTrue(allocate(vpn, 1, section.isReadOnly()), "allocate section failed");
-        int ppn = swap(vpn);
-
         coff.getSection(ip.int1).loadPage(ip.int2, ppn);
     }
 
     protected boolean handleTLBMiss(int vaddr) {
         TranslationEntry entry = translate(vaddr);
-        if (entry == null) {
-            if (lazySections.containsKey(new Integer(UserKernel.vpn(vaddr)))) {
-                loadLazySection(UserKernel.vpn(vaddr));
-                return true;
-            } else
-                return false;
-        } else {
+        if (entry == null)
+            return false;
+        else {
             if (!entry.valid) {
                 handlePageFault(vaddr);
                 entry = translate(vaddr);
@@ -155,7 +145,7 @@ public class VMProcess extends UserProcess {
 
     protected int swap(int vpn) {
         TranslationEntry entry = lookUpPageTable(vpn);
-        Lib.assertTrue(entry != null, "page not in PageTable");
+        Lib.assertTrue(entry != null, "page " + vpn + " not in PageTable");
 
         if (entry.valid)
             return entry.ppn;
@@ -166,17 +156,19 @@ public class VMProcess extends UserProcess {
         return ppn;
     }
 
-    protected void swapOut(int vpn) {
-        TranslationEntry entry = lookUpPageTable(vpn);
+    protected void swapOut(int pid, int vpn) {
+        TranslationEntry entry = PageTable.getInstance().getEntry(pid, vpn);
+        Lib.assertTrue(entry != null, "victim not in PageTable");
+        Lib.assertTrue(entry.valid, "victim page not in memory");
 
-        Lib.assertTrue(entry.valid, "Victim entry is not valid");
+        Lib.debug(dbgVM, "\tswapping out virtual page " + entry.vpn + " of pid " + pid + " on phys page " + entry.ppn);
 
         Processor processor = Machine.processor();
         for (int i = 0; i < processor.getTLBSize(); ++i) {
             TranslationEntry tlbEntry = processor.readTLBEntry(i);
             if (tlbEntry.valid && tlbEntry.vpn == entry.vpn && tlbEntry.ppn == entry.ppn) {
                 PageTable.getInstance().combineEntry(pid, tlbEntry);
-                entry = lookUpPageTable(vpn);
+                entry = PageTable.getInstance().getEntry(pid, vpn);
 
                 tlbEntry.valid = false;
                 processor.writeTLBEntry(i, tlbEntry);
@@ -190,19 +182,24 @@ public class VMProcess extends UserProcess {
             SwapfileManager.getInstance().writeToSwapfile(pid, entry.vpn, memory, entry.ppn * pageSize);
         }
 
-        TranslationEntry supplant = new TranslationEntry(entry);
-        supplant.valid = false;
-        PageTable.getInstance().setEntry(pid, supplant);
+        entry.valid = false;
+        PageTable.getInstance().setEntry(pid, entry);
     }
 
     protected void swapIn(int ppn, int vpn) {
+        Lib.debug(dbgVM, "\tswapping in virtual page " + vpn + " to phys page " + ppn);
+
         TranslationEntry entry = lookUpPageTable(vpn);
         Lib.assertTrue(entry != null, "Target doesn't exist in page table");
-        Lib.assertTrue(entry.valid, "Target entry is not valid");
+        Lib.assertTrue(!entry.valid, "Target entry is valid");
 
-        byte[] page = SwapfileManager.getInstance().readFromSwapfile(pid, vpn);
-        byte[] memory = Machine.processor().getMemory();
-        System.arraycopy(page, 0, memory, ppn * pageSize, pageSize);
+        if (lazySections.containsKey(new Integer(vpn)))
+            loadLazySection(vpn, ppn);
+        else {
+            byte[] page = SwapfileManager.getInstance().readFromSwapfile(pid, vpn);
+            byte[] memory = Machine.processor().getMemory();
+            System.arraycopy(page, 0, memory, ppn * pageSize, pageSize);
+        }
 
         TranslationEntry supplant = new TranslationEntry(entry);
         supplant.valid = true;
@@ -237,13 +234,11 @@ public class VMProcess extends UserProcess {
     public void saveState() {
         Processor processor = Machine.processor();
 
-        pageLock.acquire();
         for (int i = 0; i < processor.getTLBSize(); ++i) {
             TranslationEntry entry = processor.readTLBEntry(i);
             if (entry.valid)
                 PageTable.getInstance().combineEntry(pid, entry);
         }
-        pageLock.release();
 
         super.saveState();
     }
@@ -256,97 +251,6 @@ public class VMProcess extends UserProcess {
         Processor processor = Machine.processor();
         for (int i = 0; i < processor.getTLBSize(); ++i)
             processor.writeTLBEntry(i, new TranslationEntry(0, 0, false, false, false, false));
-
-        super.restoreState();
-    }
-
-    protected boolean load(String name, String[] args) {
-        Lib.debug(dbgProcess, "VMProcess.load(\"" + name + "\")");
-
-        OpenFile executable = ThreadedKernel.fileSystem.open(name, false);
-        if (executable == null) {
-            Lib.debug(dbgProcess, "\topen failed");
-            return false;
-        }
-
-        try {
-            coff = new Coff(executable);
-        } catch (EOFException e) {
-            executable.close();
-            Lib.debug(dbgProcess, "\tcoff load failed");
-            return false;
-        }
-
-        // make sure the sections are contiguous and start at page 0
-        int numPages = 0;
-        for (int s = 0; s < coff.getNumSections(); s++) {
-            CoffSection section = coff.getSection(s);
-            if (section.getFirstVPN() != numPages) {
-                coff.close();
-                Lib.debug(dbgProcess, "\tfragmented executable");
-                return false;
-            }
-            numPages += section.getLength();
-        }
-
-        // make sure the argv array will fit in one page
-        byte[][] argv = new byte[args.length][];
-        int argsSize = 0;
-        for (int i = 0; i < args.length; i++) {
-            argv[i] = args[i].getBytes();
-            // 4 bytes for argv[] pointer; then string plus one for null byte
-            argsSize += 4 + argv[i].length + 1;
-        }
-        if (argsSize > pageSize) {
-            coff.close();
-            Lib.debug(dbgProcess, "\targuments too long");
-            return false;
-        }
-
-        // program counter initially points at the program entry point
-        initialPC = coff.getEntryPoint();
-
-        // next comes the stack; stack pointer initially points to top of it
-        pageLock.acquire();
-        if (!allocate(numPages, stackPages, false)) {
-            pageLock.release();
-            releaseResource();
-            return false;
-        }
-        pageLock.release();
-
-        initialSP = numPages * pageSize;
-
-        // and finally reserve 1 page for arguments
-        pageLock.acquire();
-        if (!allocate(numPages, 1, false)) {
-            pageLock.release();
-            releaseResource();
-            return false;
-        }
-        pageLock.release();
-
-        if (!loadSections())
-            return false;
-
-        // store arguments in last page
-        int entryOffset = (numPages - 1) * pageSize;
-        int stringOffset = entryOffset + args.length * 4;
-
-        this.argc = args.length;
-        this.argv = entryOffset;
-
-        for (int i = 0; i < argv.length; i++) {
-            byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
-            Lib.assertTrue(writeVirtualMemory(entryOffset, stringOffsetBytes) == 4);
-            entryOffset += 4;
-            Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) == argv[i].length);
-            stringOffset += argv[i].length;
-            Lib.assertTrue(writeVirtualMemory(stringOffset, new byte[] { 0 }) == 1);
-            stringOffset += 1;
-        }
-
-        return true;
     }
 
     /**
@@ -393,7 +297,7 @@ public class VMProcess extends UserProcess {
                 pageLock.release();
                 
                 if (!success) {
-                    Lib.debug(dbgProcess, "Page fault: try to access address " + Processor.regBadVAddr);
+                    Lib.debug(dbgVM, "Page fault: try to access address " + Processor.regBadVAddr);
                     finish(cause);
                 }
                 break;
@@ -409,6 +313,5 @@ public class VMProcess extends UserProcess {
 
     protected static Lock pageLock = new Lock();
     protected static final int pageSize = Processor.pageSize;
-    protected static final char dbgProcess = 'a';
     protected static final char dbgVM = 'v';
 }
