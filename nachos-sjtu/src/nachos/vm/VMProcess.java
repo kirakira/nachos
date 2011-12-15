@@ -20,6 +20,10 @@ public class VMProcess extends UserProcess {
         super();
         lazySections = new HashMap<Integer, IntPair>();
         pages = new LinkedList<Integer>();
+
+        savedTLBEntries = new TranslationEntry[Machine.processor().getTLBSize()];
+        for (int i = 0; i < Machine.processor().getTLBSize(); ++i)
+            savedTLBEntries[i] = new TranslationEntry(0, 0, false, false, false, false);
     }
 
     protected TranslationEntry lookUpPageTable(int vpn) {
@@ -27,47 +31,43 @@ public class VMProcess extends UserProcess {
     }
 
     public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
-        acquireLock("readVirtualMemoryA");
+        acquireLock("readVirtualMemory");
+
         swap(VMKernel.vpn(vaddr));
-        releaseLock();
 
         int ret = super.readVirtualMemory(vaddr, data, offset, length);
 
         if (ret > 0) {
-            acquireLock("readVirtualMemoryB");
-
             TranslationEntry entry = translate(vaddr);
             Lib.assertTrue(entry != null);
             Lib.assertTrue(entry.valid);
 
             entry.used = true;
             PageTable.getInstance().setEntry(pid, entry);
-
-            releaseLock();
         }
+
+        releaseLock();
 
         return ret;
     }
 
     public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length) {
-        acquireLock("writeVirtualMemoryA");
+        acquireLock("writeVirtualMemory");
+
         swap(VMKernel.vpn(vaddr));
-        releaseLock();
 
         int ret = super.writeVirtualMemory(vaddr, data, offset, length);
 
         if (ret > 0) {
-            acquireLock("writeVirtualMemoryB");
-
             TranslationEntry entry = translate(vaddr);
             Lib.assertTrue(entry != null);
             Lib.assertTrue(entry.valid);
 
             entry.dirty = true;
             PageTable.getInstance().setEntry(pid, entry);
-
-            releaseLock();
         }
+
+        releaseLock();
 
         return ret;
     }
@@ -103,7 +103,7 @@ public class VMProcess extends UserProcess {
     protected void outputTLB() {
         for (int i = 0; i < Machine.processor().getTLBSize(); ++i) {
             TranslationEntry entry = Machine.processor().readTLBEntry(i);
-            Lib.debug(dbgVM, new Boolean(entry.valid).toString() + "\t"
+            Lib.debug(dbgVM, "\t" + new Boolean(entry.valid).toString() + "\t"
                     + new Integer(entry.vpn).toString() + "\t"
                     + new Integer(entry.ppn).toString());
         }
@@ -120,7 +120,7 @@ public class VMProcess extends UserProcess {
     protected void replaceTLBEntry(int index, TranslationEntry supplant) {
         TranslationEntry entry = Machine.processor().readTLBEntry(index);
         if (entry.valid)
-            PageTable.getInstance().combineEntry(pid, Machine.processor().readTLBEntry(index));
+            PageTable.getInstance().combineEntry(pid, entry);
 
         Machine.processor().writeTLBEntry(index, supplant);
     }
@@ -136,14 +136,19 @@ public class VMProcess extends UserProcess {
     }
 
     protected boolean handleTLBMiss(int vaddr) {
+        Lib.debug(dbgVM, "\tstart to handle TLB Miss");
         TranslationEntry entry = translate(vaddr);
         if (entry == null)
             return false;
         else {
             if (!entry.valid) {
+                Lib.debug(dbgVM, "\tpage is not in memory");
+
                 handlePageFault(vaddr);
                 entry = translate(vaddr);
                 Lib.assertTrue(entry.valid, "Page fault not handled");
+            } else {
+                Lib.debug(dbgVM, "\tpage is in memory");
             }
 
             int victim = pickTLBVictim();
@@ -246,14 +251,14 @@ public class VMProcess extends UserProcess {
      * Called by <tt>UThread.saveState()</tt>.
      */
     public void saveState() {
-        Lib.debug(dbgVM, "saved state");
+        Lib.debug(dbgVM, "save state");
 
         Processor processor = Machine.processor();
 
         for (int i = 0; i < processor.getTLBSize(); ++i) {
-            TranslationEntry entry = processor.readTLBEntry(i);
-            if (entry.valid)
-                PageTable.getInstance().combineEntry(pid, entry);
+            savedTLBEntries[i] = processor.readTLBEntry(i);
+            if (savedTLBEntries[i].valid)
+                PageTable.getInstance().combineEntry(pid, processor.readTLBEntry(i));
         }
 
         super.saveState();
@@ -264,11 +269,19 @@ public class VMProcess extends UserProcess {
      * <tt>UThread.restoreState()</tt>.
      */
     public void restoreState() {
-        Lib.debug(dbgVM, "restored state");
+        Lib.debug(dbgVM, "restore state, current pid: " + pid);
 
         Processor processor = Machine.processor();
-        for (int i = 0; i < processor.getTLBSize(); ++i)
-            processor.writeTLBEntry(i, new TranslationEntry(0, 0, false, false, false, false));
+        for (int i = 0; i < processor.getTLBSize(); ++i) {
+            if (savedTLBEntries[i].valid) {
+                TranslationEntry entry = lookUpPageTable(savedTLBEntries[i].vpn);
+                if (entry != null && entry.valid)
+                    processor.writeTLBEntry(i, savedTLBEntries[i]);
+                else
+                    processor.writeTLBEntry(i, new TranslationEntry(0, 0, false, false, false, false));
+            } else
+                processor.writeTLBEntry(i, new TranslationEntry(0, 0, false, false, false, false));
+        }
     }
 
     /**
@@ -323,10 +336,10 @@ public class VMProcess extends UserProcess {
 
                 acquireLock("handleTLBMiss");
                 boolean success = handleTLBMiss(processor.readRegister(Processor.regBadVAddr));
-                releaseLock();
                 
                 if (!success) {
-                    Lib.debug(dbgVM, "Page fault: try to access address " + processor.readRegister(Processor.regBadVAddr));
+                    Lib.debug(dbgVM, "Page fault: try to access bad address " + processor.readRegister(Processor.regBadVAddr));
+                    releaseLock();
                     finish(cause);
                 } else {
                     boolean f = false;
@@ -337,7 +350,10 @@ public class VMProcess extends UserProcess {
                             break;
                         }
                     }
-                    Lib.assertTrue(f, "TLB not handled, page " + VMKernel.vpn(processor.readRegister(Processor.regBadVAddr)) + " not in TLB");
+                    Lib.assertTrue(f, "TLB miss not handled, page " + VMKernel.vpn(processor.readRegister(Processor.regBadVAddr)) + " not in TLB");
+                    Lib.debug(dbgVM, "\tTLB Miss exception handled");
+
+                    releaseLock();
                 }
 
                 break;
@@ -350,6 +366,7 @@ public class VMProcess extends UserProcess {
 
     protected Map<Integer, IntPair> lazySections = null;
     protected LinkedList<Integer> pages = null;
+    protected TranslationEntry[] savedTLBEntries = null;
 
     protected static Lock pageLock = new Lock();
     protected static final int pageSize = Processor.pageSize;

@@ -146,6 +146,8 @@ public class UserProcess {
     }
 
     protected void finish(int cause) {
+        Lib.debug(dbgProcess, "process destroyed " + (cause == 0 ? "normally with code " + code : "abnormally with status " + status));
+
         status = cause;
 
         for (OpenFile of: openFiles.values())
@@ -161,7 +163,6 @@ public class UserProcess {
         boolean halt = false;
         processLock.acquire();
         --activeProcesses;
-        Lib.debug(dbgProcess, "process destroyed " + (cause == 0 ? "normally with code " + code : "abnormally with status " + status));
         if (activeProcesses == 0)
             halt = true;
         processLock.release();

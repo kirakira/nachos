@@ -61,6 +61,7 @@ public class PageTable {
         if (old.valid) {
             Lib.assertTrue(coreMap[old.ppn] != null, "coreMap inconsistent");
             coreMap[old.ppn] = null;
+            Lib.debug(dbgVM, "\tcleared coreMap[" + old.ppn + "]");
         }
         if (entry.valid) {
             Lib.assertTrue(coreMap[entry.ppn] == null, "coreMap inconsistent");
@@ -109,19 +110,22 @@ public class PageTable {
         return ret;
     }
 
-    public void output() {
-        Lib.debug(dbgVM, "pid\tvpn\tvalid\tppn");
-        for (Map.Entry<IntPair, TranslationEntry> entry: pageTable.entrySet()) {
-            int pid = entry.getKey().int1;
-            TranslationEntry e = entry.getValue();
-            Lib.debug(dbgVM, new Integer(pid).toString() + "\t"
-                    + new Integer(e.vpn).toString() + "\t"
-                    + new Boolean(e.valid).toString() + "\t" + new Integer(e.ppn).toString());
+    public void output(boolean onlyCoreMap) {
+        if (!onlyCoreMap) {
+            Lib.debug(dbgVM, "\tpid\tvpn\tvalid\tppn");
+            for (Map.Entry<IntPair, TranslationEntry> entry: pageTable.entrySet()) {
+                int pid = entry.getKey().int1;
+                TranslationEntry e = entry.getValue();
+                Lib.debug(dbgVM, "\t" + new Integer(pid).toString() + "\t"
+                        + new Integer(e.vpn).toString() + "\t"
+                        + new Boolean(e.valid).toString() + "\t" + new Integer(e.ppn).toString());
+            }
         }
-        Lib.debug(dbgVM, "ppn\tpid\tvpn");
+        Lib.debug(dbgVM, "\tppn\tpid\tvpn");
         for (int i = 0; i < coreMap.length; ++i) {
-            Lib.debug(dbgVM, new Integer(i).toString() + "\t" + (coreMap[i] == null ? "N/A\tN/A" : new Integer(coreMap[i].pid).toString()
-                    + "\t" + new Integer(coreMap[i].entry.vpn).toString()));
+            Lib.debug(dbgVM, "\t" + new Integer(i).toString() + "\t" +
+                    (coreMap[i] == null ? "N/A\tN/A" : new Integer(coreMap[i].pid).toString()
+                        + "\t" + new Integer(coreMap[i].entry.vpn).toString()));
         }
     }
 
