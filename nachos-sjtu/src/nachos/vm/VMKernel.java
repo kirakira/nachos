@@ -1,5 +1,6 @@
 package nachos.vm;
 
+import nachos.machine.*;
 import nachos.userprog.UserKernel;
 
 /**
@@ -38,6 +39,7 @@ public class VMKernel extends UserKernel {
      * Terminate this kernel. Never returns.
      */
     public void terminate() {
+        SwapfileManager.getInstance().close();
         super.terminate();
     }
 

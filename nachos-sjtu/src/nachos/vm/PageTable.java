@@ -93,20 +93,36 @@ public class PageTable {
 
     public TranslationEntry removeEntry(int pid, int vpn) {
         TranslationEntry entry = pageTable.remove(new IntPair(pid, vpn));
-        if (entry != null)
+        if (entry != null && entry.valid)
             coreMap[entry.ppn] = null;
+
         return entry;
     }
 
     public TranslationEntryWithPid pickVictim() {
-        Random rand = new Random();
         TranslationEntryWithPid ret = null;
         do {
-            int index = rand.nextInt(coreMap.length);
+            int index = Lib.random(coreMap.length);
             ret = coreMap[index];
         } while (ret == null || ret.entry.valid == false);
 
         return ret;
+    }
+
+    public void output() {
+        Lib.debug(dbgVM, "pid\tvpn\tvalid\tppn");
+        for (Map.Entry<IntPair, TranslationEntry> entry: pageTable.entrySet()) {
+            int pid = entry.getKey().int1;
+            TranslationEntry e = entry.getValue();
+            Lib.debug(dbgVM, new Integer(pid).toString() + "\t"
+                    + new Integer(e.vpn).toString() + "\t"
+                    + new Boolean(e.valid).toString() + "\t" + new Integer(e.ppn).toString());
+        }
+        Lib.debug(dbgVM, "ppn\tpid\tvpn");
+        for (int i = 0; i < coreMap.length; ++i) {
+            Lib.debug(dbgVM, new Integer(i).toString() + "\t" + (coreMap[i] == null ? "N/A\tN/A" : new Integer(coreMap[i].pid).toString()
+                    + "\t" + new Integer(coreMap[i].entry.vpn).toString()));
+        }
     }
 
     protected static final char dbgVM = 'v';

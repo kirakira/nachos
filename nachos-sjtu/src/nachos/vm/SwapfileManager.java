@@ -38,6 +38,7 @@ public class SwapfileManager {
 
     public void close() {
         swapFile.close();
+        ThreadedKernel.fileSystem.remove(swapFileName);
     }
 
     public int findEntry(int pid, int vpn) {
@@ -73,9 +74,10 @@ public class SwapfileManager {
             return null;
 
         byte[] ret = new byte[pageSize];
-        if (swapFile.read(pos * pageSize, ret, 0, pageSize) == -1)
+        if (swapFile.read(pos * pageSize, ret, 0, pageSize) == -1) {
+            Lib.debug(dbgVM, "returning a new page from swapfile");
             return new byte[pageSize];
-        else
+        } else
             return ret;
     }
 
@@ -84,4 +86,6 @@ public class SwapfileManager {
             return;
         holes.add(swapTable.remove(new IntPair(pid, vpn)));
     }
+
+    protected final static char dbgVM = 'v';
 }

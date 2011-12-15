@@ -27,14 +27,14 @@ public class VMProcess extends UserProcess {
     }
 
     public int readVirtualMemory(int vaddr, byte[] data, int offset, int length) {
-        pageLock.acquire();
+        acquireLock("readVirtualMemoryA");
         swap(VMKernel.vpn(vaddr));
-        pageLock.release();
+        releaseLock();
 
         int ret = super.readVirtualMemory(vaddr, data, offset, length);
 
         if (ret > 0) {
-            pageLock.acquire();
+            acquireLock("readVirtualMemoryB");
 
             TranslationEntry entry = translate(vaddr);
             Lib.assertTrue(entry != null);
@@ -43,21 +43,21 @@ public class VMProcess extends UserProcess {
             entry.used = true;
             PageTable.getInstance().setEntry(pid, entry);
 
-            pageLock.release();
+            releaseLock();
         }
 
         return ret;
     }
 
     public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length) {
-        pageLock.acquire();
+        acquireLock("writeVirtualMemoryA");
         swap(VMKernel.vpn(vaddr));
-        pageLock.release();
+        releaseLock();
 
         int ret = super.writeVirtualMemory(vaddr, data, offset, length);
 
         if (ret > 0) {
-            pageLock.acquire();
+            acquireLock("writeVirtualMemoryB");
 
             TranslationEntry entry = translate(vaddr);
             Lib.assertTrue(entry != null);
@@ -66,7 +66,7 @@ public class VMProcess extends UserProcess {
             entry.dirty = true;
             PageTable.getInstance().setEntry(pid, entry);
 
-            pageLock.release();
+            releaseLock();
         }
 
         return ret;
@@ -100,13 +100,21 @@ public class VMProcess extends UserProcess {
         return true;
     }
 
+    protected void outputTLB() {
+        for (int i = 0; i < Machine.processor().getTLBSize(); ++i) {
+            TranslationEntry entry = Machine.processor().readTLBEntry(i);
+            Lib.debug(dbgVM, new Boolean(entry.valid).toString() + "\t"
+                    + new Integer(entry.vpn).toString() + "\t"
+                    + new Integer(entry.ppn).toString());
+        }
+    }
+
     protected int pickTLBVictim() {
         for (int i = 0; i < Machine.processor().getTLBSize(); ++i)
             if (Machine.processor().readTLBEntry(i).valid == false)
                 return i;
 
-        Random rand = new Random();
-        return rand.nextInt(Machine.processor().getTLBSize());
+        return Lib.random(Machine.processor().getTLBSize());
     }
 
     protected void replaceTLBEntry(int index, TranslationEntry supplant) {
@@ -118,6 +126,7 @@ public class VMProcess extends UserProcess {
     }
 
     protected void loadLazySection(int vpn, int ppn) {
+        Lib.debug(dbgVM, "\tload lazy section to virtual page " + vpn + " on phys page " + ppn);
         IntPair ip = lazySections.remove(new Integer(vpn));
         if (ip == null)
             return;
@@ -134,6 +143,7 @@ public class VMProcess extends UserProcess {
             if (!entry.valid) {
                 handlePageFault(vaddr);
                 entry = translate(vaddr);
+                Lib.assertTrue(entry.valid, "Page fault not handled");
             }
 
             int victim = pickTLBVictim();
@@ -193,19 +203,23 @@ public class VMProcess extends UserProcess {
         Lib.assertTrue(entry != null, "Target doesn't exist in page table");
         Lib.assertTrue(!entry.valid, "Target entry is valid");
 
-        if (lazySections.containsKey(new Integer(vpn)))
+        boolean dirty = false;
+        if (lazySections.containsKey(new Integer(vpn))) {
             loadLazySection(vpn, ppn);
-        else {
+            dirty = true;
+        } else {
             byte[] page = SwapfileManager.getInstance().readFromSwapfile(pid, vpn);
             byte[] memory = Machine.processor().getMemory();
             System.arraycopy(page, 0, memory, ppn * pageSize, pageSize);
+
+            dirty = false;
         }
 
         TranslationEntry supplant = new TranslationEntry(entry);
         supplant.valid = true;
         supplant.ppn = ppn;
-        supplant.used = false;
-        supplant.dirty = false;
+        supplant.used = dirty;
+        supplant.dirty = dirty;
         PageTable.getInstance().setEntry(pid, supplant);
     }
 
@@ -215,7 +229,7 @@ public class VMProcess extends UserProcess {
 
     protected void releaseResource() {
         for (Integer vpn: pages) {
-            pageLock.acquire();
+            acquireLock("releaseResource");
 
             TranslationEntry entry = PageTable.getInstance().removeEntry(pid, vpn.intValue());
             if (entry.valid)
@@ -223,7 +237,7 @@ public class VMProcess extends UserProcess {
 
             SwapfileManager.getInstance().removeEntry(pid, vpn.intValue());
 
-            pageLock.release();
+            releaseLock();
         }
     }
 
@@ -232,6 +246,8 @@ public class VMProcess extends UserProcess {
      * Called by <tt>UThread.saveState()</tt>.
      */
     public void saveState() {
+        Lib.debug(dbgVM, "saved state");
+
         Processor processor = Machine.processor();
 
         for (int i = 0; i < processor.getTLBSize(); ++i) {
@@ -248,6 +264,8 @@ public class VMProcess extends UserProcess {
      * <tt>UThread.restoreState()</tt>.
      */
     public void restoreState() {
+        Lib.debug(dbgVM, "restored state");
+
         Processor processor = Machine.processor();
         for (int i = 0; i < processor.getTLBSize(); ++i)
             processor.writeTLBEntry(i, new TranslationEntry(0, 0, false, false, false, false));
@@ -279,6 +297,14 @@ public class VMProcess extends UserProcess {
         super.unloadSections();
     }
 
+    protected void acquireLock(String msg) {
+        pageLock.acquire();
+    }
+
+    protected void releaseLock() {
+        pageLock.release();
+    }
+
     /**
      * Handle a user exception. Called by <tt>UserKernel.exceptionHandler()</tt>
      * . The <i>cause</i> argument identifies which exception occurred; see the
@@ -292,14 +318,28 @@ public class VMProcess extends UserProcess {
 
         switch (cause) {
             case Processor.exceptionTLBMiss:
-                pageLock.acquire();
+                Lib.debug(dbgVM, "\tTLB Miss exception tirggered, bad addr=" + processor.readRegister(Processor.regBadVAddr) + "("
+                        + VMKernel.vpn(processor.readRegister(Processor.regBadVAddr)) + ")");
+
+                acquireLock("handleTLBMiss");
                 boolean success = handleTLBMiss(processor.readRegister(Processor.regBadVAddr));
-                pageLock.release();
+                releaseLock();
                 
                 if (!success) {
-                    Lib.debug(dbgVM, "Page fault: try to access address " + Processor.regBadVAddr);
+                    Lib.debug(dbgVM, "Page fault: try to access address " + processor.readRegister(Processor.regBadVAddr));
                     finish(cause);
+                } else {
+                    boolean f = false;
+                    for (int i = 0; i < Machine.processor().getTLBSize(); ++i) {
+                        TranslationEntry entry = Machine.processor().readTLBEntry(i);
+                        if (entry.valid && entry.vpn == VMKernel.vpn(processor.readRegister(Processor.regBadVAddr))) {
+                            f = true;
+                            break;
+                        }
+                    }
+                    Lib.assertTrue(f, "TLB not handled, page " + VMKernel.vpn(processor.readRegister(Processor.regBadVAddr)) + " not in TLB");
                 }
+
                 break;
 
             default:

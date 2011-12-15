@@ -167,7 +167,7 @@ public class UserProcess {
         processLock.release();
 
         if (halt)
-            Machine.halt();
+            Kernel.kernel.terminate();
         else
             thread.finish();
     }
@@ -492,7 +492,7 @@ public class UserProcess {
     protected int handleHalt() {
 
         if (pid == 1) {
-            Machine.halt();
+            finish(0);
             Lib.assertNotReached("Machine.halt() did not halt machine!");
         }
 
