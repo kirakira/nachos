@@ -15,7 +15,7 @@ public class IntPair {
     }
 
     public int hashCode() {
-        return new Integer(int1).hashCode() + new Integer(int2).hashCode();
+        return (new Integer(int1).toString() + new Integer(int2).toString()).hashCode();
     }
 }
 
