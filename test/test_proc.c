@@ -34,8 +34,6 @@ int main() {
   int status;
   for (i = children - 1; i >= 0; --i) {
     assertTrue(join(pid[i], &status) == 1);
-    if (status != 100 + i)
-        printf("expect status=%d, but status==%d\n", 100 + i, status);
     assertTrue(status == 100 + i);
   }
 

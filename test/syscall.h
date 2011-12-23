@@ -25,6 +25,15 @@
 #define syscallMmap		10
 #define syscallConnect		11
 #define syscallAccept		12
+#define syscallGetpid		13
+#define syscallMkdir		14
+#define syscallRmdir		15
+#define syscallChdir		16
+#define syscallGetcwd		17
+#define syscallReaddir		18
+#define syscallStat	      	19
+#define syscallLink               20
+#define syscallSymlink		21
 
 /* Don't want the assembler to see C code, but start.s includes syscall.h. */
 #ifndef START_S
@@ -36,6 +45,21 @@
  */
 #define fdStandardInput		0
 #define fdStandardOutput	1
+
+#define FileNameMaxLen 256
+
+#define NormalFileType 0
+#define DirFileType 1
+#define LinkFileType 2
+
+typedef struct FileStatType {
+    char name[FileNameMaxLen];
+    int size;
+    int sectors;
+    int type;
+    int inode;
+    int links;
+} FileStat;
 
 /* The system call interface. These are the operations the Nachos kernel needs
  * to support, to be able to run user programs.
@@ -256,6 +280,100 @@ int connect(int host, int port);
  * occurred.
  */
 int accept(int port);
+
+/**
+ * getpid() returns the process ID of the calling process.
+ */
+int getpid(void);
+
+/* ADVANCED FILE MANAGEMENT SYSCALLS: mkdir, rmdir, chdir, getcwd */
+
+/**
+ * Create a directory named pathname.
+ *
+ * Return zero on success, or -1 if an error occurred.
+ */
+int mkdir(const char *pathname);
+
+/**
+ * Delete a directory, which must be empty.
+ *
+ * On success, zero is returned. On error, -1 is returned.
+ */
+int rmdir(const char *pathname);
+
+/**
+ * Change the working directory of the calling process to the directory
+ * specified in pathname.
+ * 
+ * On success, zero is returned. On error, -1 is returned.
+ */
+int chdir(const char *path);
+
+/**
+ * Get current working directory.
+ *
+ * The getcwd() copies an absolute pathname of the current  working directory
+ * to the array pointed by buf, which is of length size.
+ *
+ * Return -1 on failure (for example, if the current absolute path name would
+ * require a buffer longer than size elements), and the number of characters
+ * stored in buf on success.
+ */
+int getcwd(char *buf, int size);
+
+/**
+ * Get directory entries name in the directory.
+ *
+ * The readdir() copies all entries's name  in the directory named dirname to
+ * the array pointed by buf, which is char[size][namesize]
+ * 
+ * Return -1 on failure (for example, if directory named dirname doesn't exist or
+ * entry name longer than namesize elements or the number of entries bigger
+ * than size), and the number of entries stored in buf on success.
+ * 
+ */
+int readdir(char *dirname, char buf[][], int size, int namesize);
+
+/**
+ * Get file statistic
+ *
+ * The stat() copies all file statistic to the stat
+ * 
+ * Return -1 on failure, and the number of charactors stored in buf on success.
+ */
+int stat(char* filename, FileStat *stat);
+/**
+ *    The link() creates a new link (also known as a hard link) to an existing file.
+ * 
+ *    If newpath exists it will not be overwritten.
+ *
+ *    This new name may be used exactly as the old one for any operation; both names
+ *    refer to the same file (and so have the same permissions and ownership) and it
+ *    is impossible to tell which name was the "original".
+ *
+ *    On success, zero is returned.  On error, -1 is returned.
+ **/
+int link(char* oldname, char* newname);
+
+/**
+ *    The symlink() creates a new symbolic link to an existing file.
+ * 
+ *    If newpath exists it will not be overwritten.
+ *    
+ *     A  symbolic link is a special type of file whose contents are a string that is
+ *     the pathname another file, the file to which the link refers.  In other words,
+ *     a symbolic link is a pointer to another name, and not to an underlying object.
+ *     For this reason, symbolic links may refer to directories and  may  cross  file
+ *     system boundaries.
+ *
+ *    There  is  no  requirement  that  the  pathname referred to by a symbolic link
+ *    should exist.  A symbolic link that refers to a pathname that does  not  exist
+ *    is said to be a dangling link.
+ *
+ *    On success, zero is returned.  On error, -1 is returned.
+ **/
+int symlink(char* oldname, char* newname);
 
 #endif /* START_S */
 

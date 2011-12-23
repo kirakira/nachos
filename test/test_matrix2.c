@@ -27,7 +27,7 @@ int add_stack(int depth) {
 		fail();
   for(j = 0;j < MATRIX_SIZE;++j)
 	  for(i = 0;i < MATRIX_SIZE;++i)
-		  if(!arr[i][j] == valueAt(i, j)) {
+		  if(arr[i][j] != valueAt(i, j)) {
 			  printf("incorrect value!\n");
 			  fail();
 		  }
