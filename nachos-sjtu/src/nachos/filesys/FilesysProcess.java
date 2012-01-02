@@ -65,7 +65,7 @@ public class FilesysProcess extends VMProcess
   {
     if (cause == Processor.exceptionSyscall)
     {
-      //TODO implement this
+        handleSyscall();
     }
     else
       super.handleException(cause);
