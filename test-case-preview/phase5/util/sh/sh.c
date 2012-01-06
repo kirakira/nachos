@@ -332,41 +332,10 @@ void runline(char* line) {
     }
 }
 
-int freadline(char* s, int maxlength, FILE fd) {
-  int i = 0;
-  while (1) {
-    char c = fgetc(fd);
-    if (c == '\n' || c <= 0) {
-      s[i] = 0;
-      return i;
-    } else if (i + 1 == maxlength) {
-      beep();
-    } else {
-      s[i++] = c;
-    }
-  }
-}
-
 int main(int argc, char *argv[]) {
-  if (argc > 2) {
-    printf("usage: sh [script]");
-  }
-
-  char buffer[BUFFERSIZE];
-
-  if (argc == 2) {
-    FILE fd = open(argv[1]);
-    if (fd < 0) {
-      printf("file open error\n");
-      exit(1);
-    }
-    while (freadline(buffer, BUFFERSIZE, fd)) {
-      runline(buffer);
-    }
-    exit(0);
-  }
-
     char prompt[] = "nachos% ";
+
+    char buffer[BUFFERSIZE];
 
     while (1) {
 	printf("%s", prompt);
@@ -375,5 +344,4 @@ int main(int argc, char *argv[]) {
 
 	runline(buffer);
     }
-    return 0;
 }

@@ -506,12 +506,16 @@ public class UserProcess {
 
     protected int openFile(int a0, boolean create) {
         String file = readVirtualMemoryString(a0, maxArgLen);
-        if (file == null)
+        if (file == null) {
+            Lib.debug(dbgProcess, "Load string failed");
             return -1;
+        }
 
         OpenFile of = ThreadedKernel.fileSystem.open(file, create);
-        if (of == null)
+        if (of == null) {
+            Lib.debug(dbgProcess, "String " + file + " loaded but create file failed");
             return -1;
+        }
 
         int id = nextFileId();
         openFiles.put(new Integer(id), of);

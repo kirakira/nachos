@@ -44,7 +44,7 @@
  * display output (UNIX stdout). File descriptor 0 can be read, and file
  * descriptor 1 can be written, without previous calls to open().
  */
-#define fdStandardInput		0
+#define fdStandardInput	0
 #define fdStandardOutput	1
 
 #define FileNameMaxLen 256
@@ -54,12 +54,12 @@
 #define LinkFileType 2
 
 typedef struct FileStatType {
-    char name[FileNameMaxLen]; // name
-    int size; // size in bytes
-    int sectors; // number of sectors occupied
-    int type; // NormalFileType(0), DirFileType(1) or LinkFileType(2)
-    int inode; // the address of the (first) iNode
-    int links; // number of links (with regard to hard link, not symbolic link)
+    char name[FileNameMaxLen];
+    int size;
+    int sectors;
+    int type;
+    int inode;
+    int links;
 } FileStat;
 
 /* The system call interface. These are the operations the Nachos kernel needs
@@ -253,6 +253,8 @@ int unlink(char *name);
  */
 int mmap(int fileDescriptor, char *address);
 
+/* NETWORK SYSCALLS: connect, accept */
+
 /**
  * Attempt to initiate a new connection to the specified port on the specified
  * remote host, and return a new file descriptor referring to the connection.
@@ -341,7 +343,7 @@ int readdir(char *dirname, char buf[][], int size, int namesize);
  *
  * The stat() copies all file statistic to the stat
  * 
- *  Return 0 on success, and -1 on failure.
+ * Return -1 on failure, and the number of charactors stored in buf on success.
  */
 int stat(char* filename, FileStat *stat);
 /**

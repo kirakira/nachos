@@ -1,3 +1,5 @@
 *.swp
 *.class
 mips.tar
+*.coff
+*.a
