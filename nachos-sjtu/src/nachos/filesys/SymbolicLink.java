@@ -24,6 +24,16 @@ public class SymbolicLink extends INode {
         return sl;
     }
 
+    public static SymbolicLink create(int block, String target) {
+        SymbolicLink sl = new SymbolicLink();
+        sl.block = block;
+
+        sl.target = target;
+        sl.save();
+
+        return sl;
+    }
+
     public String getTarget() {
         return target;
     }

@@ -83,7 +83,7 @@ public class FreeList {
 
     private int getFree() {
         int i = 0, l = leaves();
-        while (i < l) {
+        while (i < l - 1) {
             if (get(i) != 0)
                 return -1;
 
@@ -95,6 +95,18 @@ public class FreeList {
         }
 
         return i - l + 1;
+    }
+
+    private void check() {
+        int leaves = leaves();
+        for (int i = 0; i < leaves - 1; ++i) {
+            int l = i * 2 + 1, r = l + 1;
+            if (get(i) != 0) {
+                Lib.assertTrue(get(l) != 0 && get(r) != 0, "i=" + i);
+            } else {
+                Lib.assertTrue(get(l) == 0 || get(r) == 0);
+            }
+        }
     }
 
     public int occupy() {
@@ -110,6 +122,7 @@ public class FreeList {
     public void free(int i) {
         resetUse(i);
         dirty = true;
+        Lib.assertTrue(get(i + leaves() - 1) == 0);
     }
     
     public static int getBlocksCount() {

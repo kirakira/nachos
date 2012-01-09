@@ -1,6 +1,8 @@
 package nachos.filesys;
 
 import nachos.machine.Machine;
+import nachos.machine.FileSystem;
+import nachos.threads.ThreadedKernel;
 import nachos.machine.Processor;
 import nachos.vm.VMProcess;
 
@@ -21,26 +23,106 @@ public class FilesysProcess extends VMProcess {
 
     protected String currentDir = "/";
 
+    private RealFileSystem getFs() {
+        FileSystem fs = ThreadedKernel.fileSystem;
+        if (fs instanceof RealFileSystem)
+            return (RealFileSystem) fs;
+        else
+            return null;
+    }
+
+    private int handleMkdir(int a0) {
+        String dir = readVirtualMemoryString(a0, maxArgLen);
+        if (dir == null)
+            return -1;
+        if (getFs().createFolder(absoluteFileName(dir)))
+            return 0;
+        else
+            return -1;
+    }
+
+    private int handleRmdir(int a0) {
+        String dir = readVirtualMemoryString(a0, maxArgLen);
+        if (dir == null)
+            return -1;
+        if (getFs().removeFolder(absoluteFileName(dir)))
+            return 0;
+        else
+            return -1;
+    }
+
+    private int handleChdir(int a0) {
+        return -1;
+    }
+
+    private int handleGetcwd(int a0, int a1) {
+        return -1;
+    }
+
+    private int handleReaddir(int a0, int a1, int a2, int a3) {
+        return -1;
+    }
+
+    private int handleStat(int a0, int a1) {
+        return -1;
+    }
+
+    private int handleLink(int a0, int a1) {
+        String src = readVirtualMemoryString(a0, maxArgLen);
+        if (src == null)
+            return -1;
+        String dst = readVirtualMemoryString(a1, maxArgLen);
+        if (dst == null)
+            return -1;
+
+        if (getFs().createLink(absoluteFileName(src), absoluteFileName(dst)))
+            return 0;
+        else
+            return -1;
+    }
+
+    private int handleSymlink(int a0, int a1) {
+        String src = readVirtualMemoryString(a0, maxArgLen);
+        if (src == null)
+            return -1;
+        String dst = readVirtualMemoryString(a1, maxArgLen);
+        if (dst == null)
+            return -1;
+
+        if (getFs().createSymlink(absoluteFileName(src), absoluteFileName(dst)))
+            return 0;
+        else
+            return -1;
+    }
+
     public int handleSyscall (int syscall, int a0, int a1, int a2, int a3) {
         switch (syscall) {
-        case SYSCALL_MKDIR:
+            case SYSCALL_MKDIR:
+                return handleMkdir(a0);
 
-        case SYSCALL_RMDIR:
+            case SYSCALL_RMDIR:
+                return handleRmdir(a0);
 
-        case SYSCALL_CHDIR:
+            case SYSCALL_CHDIR:
+                return handleChdir(a0);
 
-        case SYSCALL_GETCWD:
+            case SYSCALL_GETCWD:
+                return handleGetcwd(a0, a1);
 
-        case SYSCALL_READDIR:
+            case SYSCALL_READDIR:
+                return handleReaddir(a0, a1, a2, a3);
 
-        case SYSCALL_STAT:
+            case SYSCALL_STAT:
+                return handleStat(a0, a1);
 
-        case SYSCALL_LINK:
+            case SYSCALL_LINK:
+                return handleLink(a0, a1);
 
-        case SYSCALL_SYMLINK:
+            case SYSCALL_SYMLINK:
+                return handleSymlink(a0, a1);
 
-        default:
-            return super.handleSyscall(syscall, a0, a1, a2, a3);
+            default:
+                return super.handleSyscall(syscall, a0, a1, a2, a3);
         }
     }
 

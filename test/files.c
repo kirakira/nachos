@@ -1,8 +1,16 @@
 #include "syscall.h"
 
 int main(void) {
-    int fd = creat("/aaa"), fd2, r, i;
+    int fd, fd2, r, i;
     char buffer[] = "asjl1";
+
+    r = mkdir("tmp/");
+    if (r == -1) {
+        printf("mkdir failed\n");
+    }
+
+    fd = creat("tmp/aaa");
+
 
     if (fd == -1) {
         printf("create failed\n");
@@ -12,27 +20,20 @@ int main(void) {
     r = write(fd, buffer, sizeof(buffer));
     if (r != sizeof(buffer))
         printf("write returned %d\n", r);
-    r = read(fd, buffer, sizeof(buffer));
-    printf("%s\n", buffer);
 
-    if (unlink("/aaa") == -1)
-        printf("unlink failed\n");
-
-    fd2 = creat("/aaa");
-    if (fd != -1)
-        printf("creat succeeded\n");
+    r = symlink("/tmp/aaa", "b");
+    if (r == -1)
+        printf("link failed\n");
 
     close(fd);
 
-    fd = creat("/aaa");
-    if (fd == -1)
-        printf("creat failed\n");
+    fd = open("b");
 
-    for (i = 0; i < sizeof(buffer); ++i)
-        buffer[i] = 0;
+    if (fd == -1)
+        printf("open failed");
+
     r = read(fd, buffer, sizeof(buffer));
-    if (r > 0)
-        printf("it is not empty file\n");
+    printf("%s\n", buffer);
 
     close(fd);
 

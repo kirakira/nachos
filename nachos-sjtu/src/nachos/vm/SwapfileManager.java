@@ -40,8 +40,11 @@ public class SwapfileManager {
     }
 
     public void close() {
-        swapFile.close();
-        ThreadedKernel.fileSystem.remove(swapFileName);
+        if (swapFile != null) {
+            swapFile.close();
+            ThreadedKernel.fileSystem.remove(swapFileName);
+            swapFile = null;
+        }
     }
 
     public int findEntry(int pid, int vpn) {

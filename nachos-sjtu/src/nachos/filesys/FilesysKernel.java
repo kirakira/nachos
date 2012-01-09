@@ -1,5 +1,6 @@
 package nachos.filesys;
 
+import nachos.machine.Lib;
 import nachos.machine.Config;
 import nachos.vm.VMKernel;
 
@@ -9,7 +10,7 @@ import nachos.vm.VMKernel;
  * @author starforever
  */
 public class FilesysKernel extends VMKernel {
-    public static final char DEBUG_FLAG = 'f';
+    public static final char dbgFilesys = 'f';
 
     public static RealFileSystem realFileSystem;
 
@@ -29,6 +30,7 @@ public class FilesysKernel extends VMKernel {
     }
 
     public void terminate () {
+        closeSwapFile();
         realFileSystem.save();
         super.terminate();
     }
