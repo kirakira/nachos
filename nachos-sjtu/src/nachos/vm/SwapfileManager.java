@@ -18,9 +18,12 @@ public class SwapfileManager {
 
     private OpenFile swapFile;
     private int pageSize;
-    public static final String swapFileName = "SWAP";
 
-    private SwapfileManager() throws FatalError {
+    private String swapFileName;
+
+    private SwapfileManager(String swapFileName) throws FatalError {
+        this.swapFileName = swapFileName;
+
         pageSize = Machine.processor().pageSize;
         swapTable = new HashMap<IntPair, Integer>();
         holes = new LinkedList<Integer>();
@@ -30,9 +33,9 @@ public class SwapfileManager {
             throw new FatalError("cannot open swap file: " + swapFileName);
     }
 
-    public static SwapfileManager getInstance() throws FatalError {
+    public static SwapfileManager getInstance(String swapFileName) throws FatalError {
         if (instance == null)
-            instance = new SwapfileManager();
+            instance = new SwapfileManager(swapFileName);
         return instance;
     }
 

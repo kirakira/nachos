@@ -8,19 +8,22 @@ public class FreeList {
 
     private byte[] data;
 
+    private boolean dirty;
+
     private FreeList() {
+        dirty = false;
     }
 
     private int leaves() {
         return data.length << 2;
     }
 
-    public static FreeList load(int block, int count) {
+    public static FreeList load(int block) {
         FreeList fl = new FreeList();
         fl.block = block;
 
-        data = new int[DiskHelper.getBlockSize() * count];
-        DiskHelper.getInstance().readBlock(block, count, data);
+        fl.data = new byte[DiskHelper.getBlockSize() * getBlocksCount()];
+        DiskHelper.getInstance().readBlock(block, fl.getBlocksCount(), fl.data);
 
         return fl;
     }
@@ -30,14 +33,14 @@ public class FreeList {
         return (byte) (x | (1 << pos));
     }
     
-    private void bitReset(byte x, int pos) {
+    private byte bitReset(byte x, int pos) {
         pos = 7 - pos;
         return (byte) (x & ~(1 << pos));
     }
 
     private byte bitGet(byte x, int pos) {
         pos = 7 - pos;
-        return (x >> pos) & 1;
+        return (byte) ((x >> pos) & 1);
     }
 
     private void set(int i) {
@@ -56,8 +59,8 @@ public class FreeList {
         int l, r;
 
         do {
-            p = (p >> 1);
-            l = (p << 1);
+            p = ((p - 1) >> 1);
+            l = (p << 1) + 1;
             r = l + 1;
             if (get(l) != 0 && get(r) != 0)
                 set(p);
@@ -67,16 +70,14 @@ public class FreeList {
     }
 
     private void setUse(int i) {
-        int p = i + leaves(), l, r;
+        int p = i + leaves() - 1;
         set(p);
-
         update(p);
     }
 
     private void resetUse(int i) {
-        int p = i + leaves(), l, r;
+        int p = i + leaves() - 1;
         reset(p);
-
         update(p);
     }
 
@@ -86,52 +87,68 @@ public class FreeList {
             if (get(i) != 0)
                 return -1;
 
-            i = (i << 1);
+            i = (i << 1) + 1;
             if (get(i) != 0) {
                 i = i + 1;
                 Lib.assertTrue(get(i) == 0);
             }
         }
 
-        return i - l;
+        return i - l + 1;
     }
 
     public int occupy() {
         int r = getFree();
         if (r != -1) {
+            dirty = true;
             setUse(r);
-            save();
-        }
+        } else
+            Lib.debug(dbgFilesys, "Warning: running out of disk space");
         return r;
     }
 
     public void free(int i) {
         resetUse(i);
-        save();
+        dirty = true;
+    }
+    
+    public static int getBlocksCount() {
+        int nBlocks = (int) (DiskHelper.getDiskSize() / (long) DiskHelper.getBlockSize());
+        int count = 1;
+        while (count * DiskHelper.getBlockSize() * 8 < nBlocks)
+            count *= 2;
+        return count * 2;
     }
 
     public static FreeList create(int block, int head) {
         FreeList fl = new FreeList();
         fl.block = block;
 
-        int nBlocks = DiskHelper.getDiskSize() / DiskHelper.getBlockSize();
-        int count = 1;
-        while (count * DiskHelper.getBlockSize() * 8 < nBlocks)
-            count *= 2;
-
-        fl.data = new int[count * 2 * DiskHelper.getBlockSize()];
-        Arrays.fill(fl.data, 0);
+        int count = getBlocksCount();
+        fl.data = new byte[count * DiskHelper.getBlockSize()];
+        Arrays.fill(fl.data, (byte) 0);
+        int nBlocks = (int) (DiskHelper.getDiskSize() / (long) DiskHelper.getBlockSize());
 
         for (int i = 0; i < head; ++i)
             fl.setUse(i);
-        for (int i = nBlocks; i < leaves(); ++i)
+        for (int i = block; i < block + count; ++i)
+            fl.setUse(i);
+        for (int i = nBlocks; i < fl.leaves(); ++i)
             fl.setUse(i);
 
         fl.save();
+
+        return fl;
     }
 
     public void save() {
-        int count = data.length / DiskHelper.getBlockSize();
-        DiskHelper.getInstance().writeBlock(block, count, data);
+        if (dirty) {
+            int count = data.length / DiskHelper.getBlockSize();
+            DiskHelper.getInstance().writeBlock(block, count, data);
+
+            dirty = false;
+        }
     }
+
+    private static final char dbgFilesys = 'f';
 }

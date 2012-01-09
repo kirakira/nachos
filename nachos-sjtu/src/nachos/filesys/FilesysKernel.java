@@ -29,6 +29,7 @@ public class FilesysKernel extends VMKernel {
     }
 
     public void terminate () {
+        realFileSystem.save();
         super.terminate();
     }
 }

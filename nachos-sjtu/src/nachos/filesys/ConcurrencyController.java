@@ -1,12 +1,12 @@
 package nachos.filesys;
 
-import nachos.thread.Lock;
-import nachos.thread.Condition;
+import nachos.threads.Lock;
+import nachos.threads.Condition;
 
 public class ConcurrencyController {
     private Lock lock;
     private Condition cond;
-    private readCount, writeCount;
+    private int readCount, writeCount;
 
     public ConcurrencyController() {
         lock = new Lock();

@@ -73,7 +73,7 @@ public class UserProcess {
      * @return <tt>true</tt> if the program was successfully executed.
      */
     public boolean execute(String name, String[] args) {
-        if (!load(name, args))
+        if (!load(absoluteFileName(name), args))
             return false;
 
         processLock.acquire();
@@ -504,6 +504,14 @@ public class UserProcess {
         return ++fileId;
     }
 
+    public String absoluteFileName(String s) {
+        return s;
+    }
+
+    public String getSwapFileName() {
+        return "SWAP";
+    }
+
     protected int openFile(int a0, boolean create) {
         String file = readVirtualMemoryString(a0, maxArgLen);
         if (file == null) {
@@ -511,9 +519,10 @@ public class UserProcess {
             return -1;
         }
 
+        file = absoluteFileName(file);
         OpenFile of = ThreadedKernel.fileSystem.open(file, create);
         if (of == null) {
-            Lib.debug(dbgProcess, "String " + file + " loaded but create file failed");
+            Lib.debug(dbgProcess, "String " + file + " loaded but open file failed");
             return -1;
         }
 
@@ -707,6 +716,7 @@ public class UserProcess {
             return handleHalt();
 
         case syscallCreate:
+            Lib.debug(dbgProcess, "Create called from process " + pid);
             return handleCreat(a0);
 
         case syscallOpen:
@@ -719,9 +729,11 @@ public class UserProcess {
             return handleWrite(a0, a1, a2);
 
         case syscallClose:
+            Lib.debug(dbgProcess, "Close called from process " + pid);
             return handleClose(a0);
 
         case syscallUnlink:
+            Lib.debug(dbgProcess, "Unlink called from process " + pid);
             return handleUnlink(a0);
 
         case syscallExec:

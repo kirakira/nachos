@@ -39,7 +39,7 @@ public class VMKernel extends UserKernel {
      * Terminate this kernel. Never returns.
      */
     public void terminate() {
-        SwapfileManager.getInstance().close();
+        SwapfileManager.getInstance(root.getSwapFileName()).close();
         super.terminate();
     }
 

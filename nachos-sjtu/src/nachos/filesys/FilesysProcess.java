@@ -19,6 +19,8 @@ public class FilesysProcess extends VMProcess {
     protected static final int SYSCALL_LINK = 20;
     protected static final int SYSCALL_SYMLINK = 21;
 
+    protected String currentDir = "/";
+
     public int handleSyscall (int syscall, int a0, int a1, int a2, int a3) {
         switch (syscall) {
         case SYSCALL_MKDIR:
@@ -42,11 +44,14 @@ public class FilesysProcess extends VMProcess {
         }
     }
 
-    public void handleException (int cause) {
-        if (cause == Processor.exceptionSyscall) {
-            handleSyscall();
-        }
+    public String absoluteFileName(String s) {
+        if (s.startsWith("/"))
+            return s;
         else
-            super.handleException(cause);
+            return currentDir + s;
+    }
+
+    public String getSwapFileName() {
+        return "/SWAP";
     }
 }

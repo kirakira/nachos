@@ -10,4 +10,10 @@ public abstract class INode {
     public int getType() {
         return type;
     }
+
+    public int getBlock() {
+        return block;
+    }
+
+    public abstract void save();
 }

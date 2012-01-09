@@ -111,12 +111,15 @@ public class UserKernel extends ThreadedKernel {
         super.run();
 
         UserProcess process = UserProcess.newUserProcess();
+        root = process;
 
         String shellProgram = Machine.getShellProgramName();
         Lib.assertTrue(process.execute(shellProgram, new String[] {}));
 
         KThread.finish();
     }
+
+    protected UserProcess root;
 
     /**
      * Terminate this kernel. Never returns.
@@ -157,6 +160,10 @@ public class UserKernel extends ThreadedKernel {
         pageLock.release();
 
         return ret;
+    }
+
+    public String absoluteFileName(String s) {
+        return s;
     }
 
     /** Globally accessible reference to the synchronized console. */

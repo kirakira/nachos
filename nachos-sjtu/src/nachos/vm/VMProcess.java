@@ -91,7 +91,7 @@ public class VMProcess extends UserProcess {
 
         for (int i = 0; i < desiredPages; ++i) {
             PageTable.getInstance().addEntry(pid, new TranslationEntry(vpn + i, 0, false, readOnly, false, false));
-            SwapfileManager.getInstance().addEntry(pid, vpn + i);
+            SwapfileManager.getInstance(getSwapFileName()).addEntry(pid, vpn + i);
             pages.add(new Integer(vpn + i));
         }
 
@@ -194,7 +194,7 @@ public class VMProcess extends UserProcess {
 
         if (entry.dirty) {
             byte[] memory = Machine.processor().getMemory();
-            SwapfileManager.getInstance().writeToSwapfile(pid, entry.vpn, memory, entry.ppn * pageSize);
+            SwapfileManager.getInstance(getSwapFileName()).writeToSwapfile(pid, entry.vpn, memory, entry.ppn * pageSize);
         }
 
         entry.valid = false;
@@ -213,7 +213,7 @@ public class VMProcess extends UserProcess {
             loadLazySection(vpn, ppn);
             dirty = true;
         } else {
-            byte[] page = SwapfileManager.getInstance().readFromSwapfile(pid, vpn);
+            byte[] page = SwapfileManager.getInstance(getSwapFileName()).readFromSwapfile(pid, vpn);
             byte[] memory = Machine.processor().getMemory();
             System.arraycopy(page, 0, memory, ppn * pageSize, pageSize);
 
@@ -240,7 +240,7 @@ public class VMProcess extends UserProcess {
             if (entry.valid)
                 VMKernel.deletePage(entry.ppn);
 
-            SwapfileManager.getInstance().removeEntry(pid, vpn.intValue());
+            SwapfileManager.getInstance(getSwapFileName()).removeEntry(pid, vpn.intValue());
 
             releaseLock();
         }
