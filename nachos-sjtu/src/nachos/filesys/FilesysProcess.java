@@ -2,6 +2,7 @@ package nachos.filesys;
 
 import nachos.machine.Machine;
 import nachos.machine.FileSystem;
+import nachos.machine.Lib;
 import nachos.threads.ThreadedKernel;
 import nachos.machine.Processor;
 import nachos.vm.VMProcess;
@@ -22,6 +23,8 @@ public class FilesysProcess extends VMProcess {
     protected static final int SYSCALL_SYMLINK = 21;
 
     protected String currentDir = "/";
+
+    private static final char dbgFilesys = 'f';
 
     private RealFileSystem getFs() {
         FileSystem fs = ThreadedKernel.fileSystem;
@@ -52,11 +55,33 @@ public class FilesysProcess extends VMProcess {
     }
 
     private int handleChdir(int a0) {
-        return -1;
+        String dir = readVirtualMemoryString(a0, maxArgLen);
+        if (dir == null)
+            return -1;
+        String t = getFs().getCanonicalPathName(absoluteFileName(dir));
+        if (t == null)
+            return -1;
+        else {
+            currentDir = t;
+            Lib.debug(dbgFilesys, "Current dir now changed to " + currentDir);
+            return 0;
+        }
     }
 
     private int handleGetcwd(int a0, int a1) {
-        return -1;
+        String s;
+        if (currentDir.endsWith("/") && currentDir.length() > 1)
+            s = currentDir.substring(0, currentDir.length() - 1);
+        else
+            s = currentDir;
+        byte[] data = s.getBytes();
+        byte[] buffer = new byte[data.length + 1];
+        System.arraycopy(data, 0, buffer, 0, data.length);
+        buffer[data.length] = 0;
+        if (buffer.length < a1) {
+            return writeVirtualMemory(a0, data);
+        } else
+            return -1;
     }
 
     private int handleReaddir(int a0, int a1, int a2, int a3) {

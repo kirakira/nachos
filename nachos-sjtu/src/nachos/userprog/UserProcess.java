@@ -583,7 +583,7 @@ public class UserProcess {
         if (file == null)
             return -1;
 
-        if (ThreadedKernel.fileSystem.remove(file))
+        if (ThreadedKernel.fileSystem.remove(absoluteFileName(file)))
             return 0;
         else
             return -1;

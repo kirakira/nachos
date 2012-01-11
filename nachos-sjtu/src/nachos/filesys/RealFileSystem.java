@@ -2,6 +2,8 @@ package nachos.filesys;
 
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Arrays;
 
@@ -153,6 +155,8 @@ public class RealFileSystem implements FileSystem {
         }
 
         private boolean expand(int newSize) {
+            Lib.debug(dbgFilesys, "Expanding " + getName() + " to " + newSize);
+
             cnf.setDirty();
 
             NormalFile inode = cnf.normalFile();
@@ -242,8 +246,8 @@ public class RealFileSystem implements FileSystem {
 
             if (!cnf.isUsing()) {
                 int block = cnf.normalFile().getBlock();
-                if (removingFiles.containsKey(new Integer(block)))
-                    doRemoveFile(removingFiles.get(new Integer(block)));
+                if (removingFiles.contains(new Integer(block)))
+                    doRemoveFile(block);
             }
         }
 
@@ -273,7 +277,7 @@ public class RealFileSystem implements FileSystem {
     private FreeList freeList;
 
     private Map<Integer, CachedNormalFile> cachedFiles;
-    private Map<Integer, String> removingFiles;
+    private Set<Integer> removingFiles;
 
     private static final int rootBlock = 1, freeListBlock = 2, filesysHead = 2;
 
@@ -285,7 +289,7 @@ public class RealFileSystem implements FileSystem {
      */
     public void init (boolean format) {
         cachedFiles = new HashMap<Integer, CachedNormalFile>();
-        removingFiles = new HashMap<Integer, String>();
+        removingFiles = new HashSet<Integer>();
 
         if (format) {
             createFilesys();
@@ -338,8 +342,20 @@ public class RealFileSystem implements FileSystem {
             return null;
     }
 
+    private String findEntryName(Directory parent, int block) {
+        for (int i = 0; i < parent.getValidCount(); ++i) {
+            Entry e = parent.getEntry(i);
+            if (e.block == block)
+                return e.name;
+        }
+
+        if (parent.hasNext())
+            return findEntryName(parent.loadNext(), block);
+        else
+            return null;
+    }
+
     private Entry findEntryRaw(String absoluteFileName, boolean symbolic, int depth) {
-        Lib.debug(dbgFilesys, "findEntryRaw: " + absoluteFileName);
         if (depth < 0)
             return null;
 
@@ -441,12 +457,12 @@ public class RealFileSystem implements FileSystem {
         return findFileEntryRaw(absoluteFileName, parent, 128);
     }
 
-    public void save() {
+    public void finish() {
         Lib.debug(dbgFilesys, "Saving file system");
         for (CachedNormalFile cnf: cachedFiles.values())
             cnf.save();
-        for (String file: removingFiles.values())
-            Lib.debug(dbgFilesys, file + " is still being used; not removing it until it's closed");
+        for (int file: removingFiles)
+            doRemoveFile(file);
         freeList.save();
     }
 
@@ -551,9 +567,6 @@ public class RealFileSystem implements FileSystem {
         } else if (e.type == Entry.NORMAL_FILE) {
             Lib.debug(dbgFilesys, "\tinode=" + e.block);
 
-            if (removingFiles.containsKey(new Integer(e.block)))
-                return null;
-
             CachedNormalFile cnf = getFile(e.block);
             cnf.increaseUseCount();
             return new File(cnf, name);
@@ -576,22 +589,30 @@ public class RealFileSystem implements FileSystem {
         }
     }
 
-    public boolean remove(String name) {
-        Lib.debug(dbgFilesys, "Removing " + name);
-        Entry entry = findEntry(name, false);
+    public boolean remove(String fileName) {
+        Lib.debug(dbgFilesys, "Removing " + fileName);
+
+        String path = containingPath(fileName), file = fileName(fileName);
+        if (path == null || file == null)
+            return false;
+
+        Entry eFolder = findEntry(path, true);
+        if (eFolder == null || eFolder.type != Entry.DIRECTORY)
+            return false;
+        Directory folder = (Directory) eFolder.load();
+        Lib.assertTrue(folder != null);
+        
+        Entry entry = findSingleEntry(folder, file);
         if (entry == null || entry.type == Entry.DIRECTORY)
             return false;
 
+        Lib.assertTrue(removeEntry(folder, file));
+
         if (entry.type == Entry.NORMAL_FILE) {
-            CachedNormalFile cnf = getFile(entry.block);
-            if (cnf.isUsing() && cnf.normalFile().getLinkCount() <= 1)
-                removingFiles.put(new Integer(entry.block), name);
-            else
-                doRemoveFile(name);
-        } else {
-            Lib.assertTrue(entry.type == Entry.SYMBOLIC_LINK);
-            doRemoveFile(name);
-        }
+            if (!doRemoveFile(entry.block))
+                removingFiles.add(new Integer(entry.block));
+        } else
+            freeList.free(entry.block);
 
         return true;
     }
@@ -643,7 +664,8 @@ public class RealFileSystem implements FileSystem {
     }
 
     private void freeFile(NormalFile nf) {
-        cachedFiles.remove(new Integer(nf.getBlock()));
+        int block = nf.getBlock();
+        cachedFiles.remove(new Integer(block));
 
         NormalFile current = nf;
         while (current != null) {
@@ -657,38 +679,22 @@ public class RealFileSystem implements FileSystem {
                 current = null;
             freeList.free(t);
         }
+
+        cachedFiles.remove(new Integer(block));
     }
 
-    private void doRemoveFile(String fileName) {
-        Lib.debug(dbgFilesys, "Do removing " + fileName);
+    private boolean doRemoveFile(int block) {
+        CachedNormalFile cnf = getFile(block);
+        if (!cnf.isUsing()) {
+            freeFile(cnf.normalFile());
+            
+            if (removingFiles.contains(new Integer(block)))
+                removingFiles.remove(new Integer(block));
 
-        String path = containingPath(fileName), file = fileName(fileName);
-        if (path == null || file == null)
-            return;
+            return true;
+        } else
+            return false;
 
-        Entry eFolder = findEntry(path, true);
-        Lib.assertTrue(eFolder != null && eFolder.type == Entry.DIRECTORY);
-        Directory folder = Directory.load(eFolder.block);
-        Lib.assertTrue(folder != null);
-        
-        Entry entry = findSingleEntry(folder, file);
-        Lib.assertTrue(entry != null && (entry.type == Entry.NORMAL_FILE || entry.type == Entry.SYMBOLIC_LINK));
-
-        Lib.assertTrue(removeEntry(folder, file));
-        if (entry.type == Entry.NORMAL_FILE) {
-            CachedNormalFile cnf = getFile(entry.block);
-            if (!cnf.isUsing() || cnf.normalFile().getLinkCount() >= 2) {
-                cnf.normalFile().decreaseLinkCount();
-
-                if (cnf.normalFile().getLinkCount() == 0)
-                    freeFile(cnf.normalFile());
-            }
-        } else {
-            freeList.free(entry.block);
-        }
-
-        if (removingFiles.containsKey(new Integer(entry.block)))
-            removingFiles.remove(new Integer(entry.block));
     }
 
     public boolean createFolder(String name) {
@@ -815,6 +821,38 @@ public class RealFileSystem implements FileSystem {
         }
 
         return true;
+    }
+
+    private String constructPathName(int block, int lower) {
+        Directory dir = null;
+        String name = "";
+        if (block != rootBlock || lower != -1)
+            dir = Directory.load(block);
+        if (lower != -1) {
+            name = findEntryName(dir, lower) + "/";
+            Lib.assertTrue(name != null);
+        }
+
+        if (block == rootBlock)
+            return "/" + name;
+        else
+            return constructPathName(dir.getParent(), block) + name;
+    }
+
+    public String getCanonicalPathName(String name) {
+        Entry entry = findEntry(name, true);
+        if (entry == null || entry.type != Entry.DIRECTORY)
+            return null;
+
+        return constructPathName(entry.block, -1);
+    }
+
+    public int getFreeSize() {
+        return 0;
+    }
+
+    public int getSwapFileSectors() {
+        return 0;
     }
 
     private static final char dbgFilesys = 'f';

@@ -31,7 +31,7 @@ public class FilesysKernel extends VMKernel {
 
     public void terminate () {
         closeSwapFile();
-        realFileSystem.save();
+        realFileSystem.finish();
         super.terminate();
     }
 }

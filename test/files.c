@@ -21,19 +21,24 @@ int main(void) {
     if (r != sizeof(buffer))
         printf("write returned %d\n", r);
 
-    r = symlink("/tmp/aaa", "b");
-    if (r == -1)
-        printf("link failed\n");
+    r = unlink("/tmp/aaa");
+    if (r != 0)
+        printf("rm failed");
 
     close(fd);
 
-    fd = open("b");
+    fd = open("/tmp/aaa");
+    if (fd != -1)
+        printf("open succeeded");
+
+    fd = creat("/tmp/aaa");
 
     if (fd == -1)
-        printf("open failed");
+        printf("create failed");
 
     r = read(fd, buffer, sizeof(buffer));
-    printf("%s\n", buffer);
+    if (r > 0)
+        printf("file is old");
 
     close(fd);
 

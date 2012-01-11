@@ -35,20 +35,16 @@ public class VMProcess extends UserProcess {
 
         swap(VMKernel.vpn(vaddr));
 
-        int ret = super.readVirtualMemory(vaddr, data, offset, length);
+        TranslationEntry entry = translate(vaddr);
+        Lib.assertTrue(entry != null);
+        Lib.assertTrue(entry.valid);
 
-        if (ret > 0) {
-            TranslationEntry entry = translate(vaddr);
-            Lib.assertTrue(entry != null);
-            Lib.assertTrue(entry.valid);
-
-            entry.used = true;
-            PageTable.getInstance().setEntry(pid, entry);
-        }
+        entry.used = true;
+        PageTable.getInstance().setEntry(pid, entry);
 
         releaseLock();
 
-        return ret;
+        return super.readVirtualMemory(vaddr, data, offset, length);
     }
 
     public int writeVirtualMemory(int vaddr, byte[] data, int offset, int length) {
@@ -56,20 +52,16 @@ public class VMProcess extends UserProcess {
 
         swap(VMKernel.vpn(vaddr));
 
-        int ret = super.writeVirtualMemory(vaddr, data, offset, length);
+        TranslationEntry entry = translate(vaddr);
+        Lib.assertTrue(entry != null);
+        Lib.assertTrue(entry.valid);
 
-        if (ret > 0) {
-            TranslationEntry entry = translate(vaddr);
-            Lib.assertTrue(entry != null);
-            Lib.assertTrue(entry.valid);
-
-            entry.dirty = true;
-            PageTable.getInstance().setEntry(pid, entry);
-        }
+        entry.dirty = true;
+        PageTable.getInstance().setEntry(pid, entry);
 
         releaseLock();
 
-        return ret;
+        return super.writeVirtualMemory(vaddr, data, offset, length);
     }
 
     protected int getFreePage() {
