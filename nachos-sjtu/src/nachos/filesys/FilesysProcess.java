@@ -89,7 +89,39 @@ public class FilesysProcess extends VMProcess {
     }
 
     private int handleStat(int a0, int a1) {
-        return -1;
+        String file = readVirtualMemoryString(a0, maxArgLen);
+        if (file == null)
+            return -1;
+        file = absoluteFileName(file);
+        FileStat fs = getFs().getStat(file);
+
+        if (fs == null)
+            return -1;
+
+        byte[] nameBuffer = fs.name.getBytes();
+        if (nameBuffer.length >= 256)
+            return -1;
+
+        byte[] buffer = new byte[276];
+        System.arraycopy(nameBuffer, 0, buffer, 0, nameBuffer.length);
+        buffer[nameBuffer.length] = 0;
+
+        Lib.bytesFromInt(buffer, 256, fs.size);
+        Lib.bytesFromInt(buffer, 260, fs.sectors);
+        int type = -1;
+        if (fs.type == Entry.DIRECTORY)
+            type = 1;
+        else if (fs.type == Entry.NORMAL_FILE)
+            type = 0;
+        else if (fs.type == Entry.SYMBOLIC_LINK)
+            type = 2;
+        Lib.bytesFromInt(buffer, 264, type);
+        Lib.bytesFromInt(buffer, 268, fs.inode);
+        Lib.bytesFromInt(buffer, 272, fs.links);
+
+        writeVirtualMemory(a1, buffer, 0, buffer.length);
+
+        return 0;
     }
 
     private int handleLink(int a0, int a1) {

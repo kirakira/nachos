@@ -116,7 +116,7 @@ public class FreeList {
             setUse(r);
         } else {
             Lib.debug(dbgFilesys, "Warning: running out of disk space");
-            Lib.assertTrue(false);
+            Lib.assertTrue(false, "Running out of disk space");
         }
         return r;
     }

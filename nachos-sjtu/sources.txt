@@ -50,6 +50,7 @@
 ./src/nachos/filesys/Directory.java
 ./src/nachos/filesys/DiskHelper.java
 ./src/nachos/filesys/FilesysKernel.java
+./src/nachos/filesys/FileStat.java
 ./src/nachos/filesys/INode.java
 ./src/nachos/threads/Communicator.java
 ./src/nachos/threads/Condition.java

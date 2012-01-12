@@ -13,6 +13,7 @@ class SwapEntry {
 public class SwapfileManager {
     private static SwapfileManager instance = null;
 
+    private Set<IntPair> unallocated;
     private Map<IntPair, Integer> swapTable;
     private Queue<Integer> holes;
 
@@ -25,6 +26,7 @@ public class SwapfileManager {
         this.swapFileName = swapFileName;
 
         pageSize = Machine.processor().pageSize;
+        unallocated = new HashSet<IntPair>();
         swapTable = new HashMap<IntPair, Integer>();
         holes = new LinkedList<Integer>();
 
@@ -47,7 +49,7 @@ public class SwapfileManager {
         }
     }
 
-    public int findEntry(int pid, int vpn) {
+    private int findEntry(int pid, int vpn) {
         Integer ret = swapTable.get(new IntPair(pid, vpn));
         if (ret == null)
             return -1;
@@ -55,29 +57,40 @@ public class SwapfileManager {
             return ret.intValue();
     }
 
-    public int addEntry(int pid, int vpn) {
-        int pos = findEntry(pid, vpn);
-        if (pos != -1)
-            return pos;
+    private int allocateEntry(int pid, int vpn) {
+        IntPair ip = new IntPair(pid, vpn);
+        if (unallocated.contains(ip)) {
+            unallocated.remove(ip);
 
-        if (holes.size() == 0)
-            holes.add(new Integer(swapTable.size()));
+            if (holes.size() == 0)
+                holes.add(new Integer(swapTable.size()));
 
-        Integer i = holes.poll();
-        swapTable.put(new IntPair(pid, vpn), i);
-        return i.intValue();
+            Integer i = holes.poll();
+            swapTable.put(new IntPair(pid, vpn), i);
+            return i;
+        } else {
+            return findEntry(pid, vpn);
+        }
+    }
+
+    public void addEntry(int pid, int vpn) {
+        unallocated.add(new IntPair(pid, vpn));
     }
 
     public int writeToSwapfile(int pid, int vpn, byte[] page, int offset) {
-        int pos = addEntry(pid, vpn);
-        swapFile.write(pos * pageSize, page, offset, pageSize);
-        return pos;
+        int pos = allocateEntry(pid, vpn);
+        if (pos == -1)
+            return 0;
+        else {
+            swapFile.write(pos * pageSize, page, offset, pageSize);
+            return pos;
+        }
     }
 
     public byte[] readFromSwapfile(int pid, int vpn) {
         int pos = findEntry(pid, vpn);
         if (pos == -1)
-            return null;
+            return new byte[pageSize];
 
         byte[] ret = new byte[pageSize];
         if (swapFile.read(pos * pageSize, ret, 0, pageSize) == -1) {

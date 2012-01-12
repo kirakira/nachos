@@ -203,7 +203,7 @@ public class RealFileSystem implements FileSystem {
         }
 
         public int write(int pos, byte[] buf, int offset, int length) {
-            Lib.debug(dbgFilesys, "Writing " + getName());
+            Lib.debug(dbgFilesys, "Writing " + getName() + ", pos=" + pos + ", len=" + length);
             if (!open)
                 return -1;
             if (pos < 0 || length < 0)
@@ -609,6 +609,8 @@ public class RealFileSystem implements FileSystem {
         Lib.assertTrue(removeEntry(folder, file));
 
         if (entry.type == Entry.NORMAL_FILE) {
+            CachedNormalFile cnf = getFile(entry.block);
+            cnf.normalFile().decreaseLinkCount();
             if (!doRemoveFile(entry.block))
                 removingFiles.add(new Integer(entry.block));
         } else
@@ -686,7 +688,8 @@ public class RealFileSystem implements FileSystem {
     private boolean doRemoveFile(int block) {
         CachedNormalFile cnf = getFile(block);
         if (!cnf.isUsing()) {
-            freeFile(cnf.normalFile());
+            if (cnf.normalFile().getLinkCount() == 0)
+                freeFile(cnf.normalFile());
             
             if (removingFiles.contains(new Integer(block)))
                 removingFiles.remove(new Integer(block));
@@ -760,13 +763,22 @@ public class RealFileSystem implements FileSystem {
     }
 
     public String[] readDir(String name) {
-        //TODO implement this
         return null;
     }
 
     public FileStat getStat(String name) {
-        //TODO implement this
-        return null;
+        Entry entry = findEntry(name, false);
+        if (entry == null)
+            return null;
+        if (entry.type == Entry.NORMAL_FILE) {
+            NormalFile nf = getFile(entry.block).normalFile();
+            return new FileStat(name, nf.getSize(), Entry.NORMAL_FILE, 0, 0, nf.getLinkCount());
+        } else if (entry.type == Entry.SYMBOLIC_LINK) {
+            return new FileStat(name, 0, Entry.SYMBOLIC_LINK, 0, 0, 0);
+        } else {
+            Lib.assertTrue(entry.type == Entry.DIRECTORY);
+            return new FileStat(name, 0, Entry.DIRECTORY, 0, 0, 0);
+        }
     }
 
     public boolean createLink(String src, String dst) {
@@ -790,9 +802,9 @@ public class RealFileSystem implements FileSystem {
             return false;
 
         cnf.setDirty();
-        cnf.normalFile.increaseLinkCount();
+        cnf.normalFile().increaseLinkCount();
         if (addEntry(fDst, name, Entry.NORMAL_FILE, eSrc.block) == false) {
-            cnf.normalFile.decreaseLinkCount();
+            cnf.normalFile().decreaseLinkCount();
             return false;
         }
 
