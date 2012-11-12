@@ -1,5 +1,5 @@
-*.swp
-*.class
 mips.tar
 *.coff
 *.a
+sources.txt
+nachos-sjtu/bin
